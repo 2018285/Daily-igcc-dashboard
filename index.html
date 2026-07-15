@@ -245,7 +245,7 @@
       <span class="badge">132 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Jul 2026 13:37 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Jul 2026 14:27 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -908,6 +908,16 @@ function render(){
   var worstDay=dseries.slice().filter(function(x){return x.ig>0;}).sort(function(a,b){return b.p-a.p;})[0];
   var _wkTxt=weeksLabel(dates);
   document.getElementById('gap-banner').innerHTML='<div class="icon">'+(pct>1.5?'🔴':pct>1?'🟡':'🟢')+'</div><div class="text"><strong>'+scopeLabel()+' · '+periodLabel()+(_wkTxt?' ('+_wkTxt+')':'')+':</strong> IGCC% <strong>'+pct.toFixed(2)+'%</strong> ('+agg[0].toLocaleString()+' IGCC / '+agg[1].toLocaleString()+' orders), '+(pct>TARGET?'<strong>'+(pct-TARGET).toFixed(2)+'pp</strong> above':'at/below')+' 0.99% target.'+(deltaPP!=null?' <strong>'+(deltaPP>=0?'+':'')+deltaPP.toFixed(2)+'pp</strong> vs prev '+dlabel(cmp)+' ('+cmpPct.toFixed(2)+'%).':'')+(_wkTxt&&CURWK&&weeksOf(dates).indexOf(CURWK)<0?' Current week is W'+CURWK+'.':'')+(worstDay&&dates.length>1?' Peak day: <strong>'+fmtD(worstDay.d)+'</strong> ('+worstDay.p.toFixed(2)+'%).':'')+(ACTSET?' <span class="badge warn">Article filter active ('+articleSel.length+') — every table reflects only the selected article'+(articleSel.length>1?'s':'')+' (item-incidence based).</span>':'')+'</div>';
+  // data-gap warnings: highlight when Store inc or Item inc lags behind the selected date
+  (function(){
+    var selMax=dates.length?dates[dates.length-1]:'';
+    var storeMax=STORE.dates&&STORE.dates.length?STORE.dates[STORE.dates.length-1]:'';
+    var itemMax=ITEMS.dates&&ITEMS.dates.length?ITEMS.dates[ITEMS.dates.length-1]:'';
+    var gaps=[];
+    if(selMax&&storeMax&&selMax>storeMax)gaps.push('<span style="color:#fbbf24;font-weight:600;">⚠ Store inc master lags: latest data is '+fmtD(storeMax)+' but selected date is '+fmtD(selMax)+'. POD table may be empty — re-download Store inc and run update.</span>');
+    if(selMax&&itemMax&&selMax>itemMax)gaps.push('<span style="color:#fbbf24;font-weight:600;">⚠ Item incidences master lags: latest data is '+fmtD(itemMax)+' but selected date is '+fmtD(selMax)+'. Item table may be empty — re-download Item incidences and run update.</span>');
+    if(gaps.length){var gb=document.getElementById('gap-banner');if(gb)gb.innerHTML+=gaps.map(function(g){return '<div style="margin-top:6px;padding:6px 10px;background:rgba(251,191,36,0.10);border-left:3px solid #fbbf24;border-radius:4px;">'+g+'</div>';}).join('');}
+  })();
 
   // city rows (Cat.inc) + top item from Item incidences
   var cityRows=cities.map(function(c){
@@ -1001,7 +1011,7 @@ function renderPods(){
   if(hint)hint.textContent=(_filtered?'Filtered: '+curStores.length+' selected PODs':'Store inc ('+span+') · highest-IGCC PODs')+' in '+(curCity==='PAN'?scopeLabel():curCity)+' · '+periodLabel()+' · W29 = 13 Jul–14 Jul · Days in Top10 across '+nDays+' store-days · click headers to sort';
   _lastPodRows=rows;
   var tb=document.getElementById('tb-pods'); var pf=document.getElementById('pods-foot');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--text-dim);padding:20px">'+(_filtered?'None of the selected PODs have data for this period.':'No store data for this selection')+' (Store inc covers '+span+').</td></tr>';if(pf)pf.innerHTML='';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="12" style="text-align:center;background:rgba(251,191,36,0.08);color:#fbbf24;font-weight:600;padding:20px;border-left:3px solid #fbbf24;">⚠ '+(_filtered?'None of the selected PODs have data for this period.':'No Store inc data for the selected date — this date may not yet be in the master CSV.')+' (Store inc covers '+span+'). Re-download the Store inc source file and run update.</td></tr>';if(pf)pf.innerHTML='';return;}
   function pc(p){return p>1.5?'color:var(--danger);font-weight:600':p>0.99?'color:var(--warn)':'color:var(--accent)';}
   function tc(n){return n>=Math.ceil(nDays/2)?'color:var(--danger);font-weight:700':(n>=3?'color:var(--warn);font-weight:600':'color:var(--text-dim)');}
   tb.innerHTML=rows.map(function(r,i){
@@ -1063,7 +1073,7 @@ function renderItemTable(rows){
   if(articleSel.length){rows=rows.filter(function(r){return articleSel.some(function(t){return articleMatch(r,t);});});}
   lastItemRows=rows;
   var tb=document.getElementById('tb-items'); var iff=document.getElementById('items-foot');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--text-dim);padding:20px">No item data for this day (Item incidences covers '+fmtD(ITEMS.dates[0])+'–'+fmtD(ITEMS.dates[ITEMS.dates.length-1])+').</td></tr>';if(iff)iff.innerHTML='';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="13" style="text-align:center;background:rgba(251,191,36,0.08);color:#fbbf24;font-weight:600;padding:20px;border-left:3px solid #fbbf24;">⚠ No Item incidences data for the selected date — this date may not yet be in the master CSV. (Item incidences covers '+fmtD(ITEMS.dates[0])+'–'+fmtD(ITEMS.dates[ITEMS.dates.length-1])+'). Re-download the Item incidences source file and run update.</td></tr>';if(iff)iff.innerHTML='';return;}
   var _allItemIG=rows.reduce(function(s,r){return s+r.ig;},0);
   var _shown=rows.slice(0,25);
   var _topItemIG=_shown.reduce(function(s,r){return s+r.ig;},0);

@@ -245,7 +245,7 @@
       <span class="badge">132 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Jul 2026 14:27 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Jul 2026 15:18 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -296,7 +296,19 @@
     <button class="btn" onclick="resetAll()" title="Remove every filter — date, tier, region, city, store and articles — back to the default view">♻ Reset all</button>
     <button class="btn" onclick="exportCities()">📤 Cities CSV</button>
     <button class="btn" onclick="exportItems()">📤 Items CSV</button>
+    <button class="btn" id="run-update-btn" onclick="runDashboardUpdate()"
+      title="Fetch latest CSVs from Drive, rebuild and push to GitHub Pages"
+      style="background:rgba(251,191,36,0.12);border-color:#fbbf24;color:#fbbf24;font-weight:600;">🔄 Run Update</button>
   </div>
+</div>
+<div id="update-log-panel" style="display:none;position:fixed;bottom:20px;right:20px;z-index:9999;
+  background:#0d1b2a;border:1px solid #fbbf24;border-radius:10px;padding:16px 20px;
+  width:480px;max-height:340px;box-shadow:0 4px 24px rgba(0,0,0,0.6);font-size:12px;line-height:1.6;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <span style="color:#fbbf24;font-weight:700;font-size:13px;">🔄 Update Progress</span>
+    <button onclick="closeUpdateLog()" style="background:none;border:none;color:#888;font-size:16px;cursor:pointer;padding:0 2px;">x</button>
+  </div>
+  <div id="update-log-body" style="overflow-y:auto;max-height:260px;color:#c8d0da;white-space:pre-wrap;font-family:monospace;font-size:11px;"></div>
 </div>
 
 <div class="city-tabs" id="city-tabs"></div>
@@ -1174,6 +1186,51 @@ function exportItems(){if(!lastItemRows.length){toast('Nothing to export');retur
 // (e.g. inside the Apps Script web-app iframe), where breaking out to full screen helps.
 function popOut(){ try{ window.open(window.location.href,'_blank'); }catch(e){ toast('Allow pop-ups to open in a new tab'); } }
 (function(){ var f=false; try{ f=(window.self!==window.top); }catch(e){ f=true; } if(f){ var el=document.getElementById('popout'); if(el) el.style.display=''; } })();
+
+// ---------- Dashboard Update Button ----------
+// Calls the local trigger server (igcc_trigger_server.py) running on port 5757.
+// The server runs the full pipeline: strip last-3 dates → download CSVs → append masters → rebuild → push.
+var _updateRunning=false;
+function closeUpdateLog(){document.getElementById('update-log-panel').style.display='none';}
+function runDashboardUpdate(){
+  if(_updateRunning){alert('Update already in progress — wait for it to finish.');return;}
+  var panel=document.getElementById('update-log-panel');
+  var logDiv=document.getElementById('update-log-body');
+  var btn=document.getElementById('run-update-btn');
+  // First ping /status to check server is reachable
+  fetch('http://localhost:5757/status',{signal:AbortSignal.timeout(3000)})
+    .then(function(r){
+      if(!r.ok) throw new Error('Server not ready');
+      return r.text();
+    })
+    .then(function(){
+      // Server is up — start update stream
+      _updateRunning=true;
+      btn.textContent='⏳ Updating…';btn.disabled=true;
+      logDiv.textContent='';
+      panel.style.display='';
+      return fetch('http://localhost:5757/update');
+    })
+    .then(function(res){
+      var reader=res.body.getReader();
+      var decoder=new TextDecoder();
+      function read(){
+        reader.read().then(function(chunk){
+          if(chunk.done){_updateRunning=false;btn.textContent='🔄 Run Update';btn.disabled=false;return;}
+          logDiv.textContent+=decoder.decode(chunk.value,{stream:true});
+          logDiv.scrollTop=logDiv.scrollHeight;
+          read();
+        }).catch(function(){_updateRunning=false;btn.textContent='🔄 Run Update';btn.disabled=false;});
+      }
+      read();
+    })
+    .catch(function(err){
+      _updateRunning=false;
+      btn.textContent='🔄 Run Update';btn.disabled=false;
+      panel.style.display='';
+      logDiv.textContent='Could not reach update server.\n\nTo enable this button:\n1. Run this command once on your PC:\n   python "C:\\Users\\selvakumar.s\\Documents\\Claude\\igcc_trigger_server.py"\n\n2. Or add it to Task Scheduler to start at login.\n\nError: '+err.message;
+    });
+}
 
 buildToolbar();
 render();

@@ -178,7 +178,7 @@
   .date-range button.clear:hover { background: var(--border); color: var(--text); }
   .selector.week.disabled { opacity: 0.4; pointer-events: none; }
 
-.selector.view .vw-link{background:transparent;border:1px solid var(--border);color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.selector.view .vw-link{background:transparent;border:1px solid var(--border);color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
   .selector.view .vw-link:hover{color:#e8ecef;border-color:#3b82f6;}
   .selector.view .vw-link.active{background:linear-gradient(135deg,#60a5fa,#c084fc);color:#fff;border-color:transparent;}
 
@@ -245,6 +245,13 @@
     </div>
   </div>
   <div class="toolbar">
+    <div class="selector view" id="sel-nav-links" style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <div class="lbl">Go to</div>
+      <a class="vw-link" href="https://2018285.github.io/Pan_india_Weekly-igcc_dashboard/" target="_blank">📅 Weekly IGCC</a>
+      <a class="vw-link" href="https://2018285.github.io/rca-bucket-trend-dashboard/dashboard.html" target="_blank">🔍 RCA</a>
+      <a class="vw-link" href="https://2018285.github.io/cc-inward-dashboard/" target="_blank">📦 CC Inward</a>
+      <a class="vw-link" href="https://yuvarajmcmt-netizen.github.io/igcc-fefo-doh/" target="_blank">🥬 DOH & FIFO</a>
+    </div>
     <div class="date-range" id="date-range">
       <div class="lbl">Date</div>
       <input type="date" id="d-from" onchange="applyRange()" title="From (or single day)" />

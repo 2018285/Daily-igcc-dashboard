@@ -178,12 +178,7 @@
   .date-range button.clear:hover { background: var(--border); color: var(--text); }
   .selector.week.disabled { opacity: 0.4; pointer-events: none; }
 
-    /* ===== Day-wise view ===== */
-    .dw-date{background:#1a2332;border:1px solid #243447;color:#94a3b8;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .15s;}
-    .dw-date:hover{border-color:#3b82f6;color:#e8ecef;}
-    .dw-date.active{background:#2563eb;border-color:#2563eb;color:#fff;font-weight:600;}
-
-    .selector.view .vw-link{background:transparent;border:1px solid var(--border);color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.selector.view .vw-link{background:transparent;border:1px solid var(--border);color:#94a3b8;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
   .selector.view .vw-link:hover{color:#e8ecef;border-color:#3b82f6;}
   .selector.view .vw-link.active{background:linear-gradient(135deg,#60a5fa,#c084fc);color:#fff;border-color:transparent;}
 
@@ -236,13 +231,6 @@
 </head>
 <body>
 
-<div style="background:#0a1628;border-bottom:1px solid #1e3048;padding:8px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-  <span style="color:#94a3b8;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-right:4px;">Dashboards:</span>
-  <a href="https://2018285.github.io/Pan_india_Weekly-igcc_dashboard/" target="_blank" rel="noopener" style="background:#1e3a5f;color:#60a5fa;padding:5px 14px;border-radius:5px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid #2d5a8e;" onmouseover="this.style.background='#243447'" onmouseout="this.style.background='#1e3a5f'">Weekly IGCC &#x2197;</a>
-  <a href="https://2018285.github.io/rca-bucket-trend-dashboard/dashboard.html" target="_blank" rel="noopener" style="background:#1e3a5f;color:#60a5fa;padding:5px 14px;border-radius:5px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid #2d5a8e;" onmouseover="this.style.background='#243447'" onmouseout="this.style.background='#1e3a5f'">RCA &#x2197;</a>
-  <a href="https://2018285.github.io/cc-inward-dashboard/" target="_blank" rel="noopener" style="background:#1e3a5f;color:#60a5fa;padding:5px 14px;border-radius:5px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid #2d5a8e;" onmouseover="this.style.background='#243447'" onmouseout="this.style.background='#1e3a5f'">CC Inward &#x2197;</a>
-</div>
-
 <div class="header">
   <div>
     <h1>PAN India IGCC — Daily Dashboard</h1>
@@ -252,7 +240,7 @@
       <span class="badge">132 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 16 Jul 2026 14:18 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 16 Jul 2026 17:46 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>

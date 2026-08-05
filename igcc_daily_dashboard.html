@@ -246,7 +246,7 @@
       <span class="badge">132 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 05 Aug 2026 12:00 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 05 Aug 2026 12:34 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -348,7 +348,13 @@
 </div>
 
 <div class="panel" id="panel-pods" style="margin-bottom:24px;">
-  <div class="panel-header"><h2 class="purple" id="h-pods">Top 15 PODs by IGCC</h2><span class="edit-hint" id="pods-hint" style="margin:0;">Store inc · highest-IGCC stores · click headers to sort</span><button onclick="exportPodsCSV()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div class="panel-header"><h2 class="purple" id="h-pods">Top 15 PODs by IGCC</h2><span class="edit-hint" id="pods-hint" style="margin:0;">Store inc · highest-IGCC stores · click headers to sort</span>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
+      <select id="pods-topn" onchange="setPodTopN(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;">
+        <option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="25">25</option><option value="30">30</option><option value="ALL">All</option>
+      </select>
+    </label>
+    <button onclick="exportPodsCSV()" style="margin-left:8px;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
   <div style="overflow-x:auto;"><table>
     <thead><tr>
       <th>#</th><th>POD (Store)</th><th>City</th><th>Tier</th>
@@ -486,6 +492,7 @@ let curStores=[];   // [] = all stores; non-empty = selected store IDs (multi-se
 let dateRange=null;   // {from,to} when a multi-day range is applied
 let ACTSET=null;      // when an article filter is active: {code:1} of in-scope article codes; routes ALL aggregates through item-incidence data
 let citySort={key:'ig',dir:-1}, itemSort={key:'wig',dir:-1}, podSort={key:'ig',dir:-1};
+let podTopN=10;   // PODs table Top-N filter — independent of other tables; 'ALL' = no cap
 let itemSortLocked=false, userPickedDay=false;  // items: W24 IGCC desc by default; day IGCC desc when a day is picked; header-click locks manual sort
 let articlePending=[], articleSel=[];  // multi-article filter for the Item Breakdown table: pending chips vs the applied set
 let chTrend, chTier, chCities;
@@ -784,6 +791,7 @@ function syncToolbar(){
   else {df.value=curDate; dt.value='';}
   document.querySelectorAll('#sel-tier button').forEach(function(b){b.classList.toggle('active',b.dataset.t===curTier);});
   document.querySelectorAll('#sel-region button').forEach(function(b){b.classList.toggle('active',b.dataset.r===curRegion);});
+  var ptn=document.getElementById('pods-topn'); if(ptn)ptn.value=String(podTopN);
 }
 function clampDate(d){if(!d)return d; if(d<CAT.dates[0])return CAT.dates[0]; if(d>CAT.dates[CAT.dates.length-1])return CAT.dates[CAT.dates.length-1]; return d;}
 function applyRange(){
@@ -804,6 +812,7 @@ function presetThisWeek(){var last=CAT.dates[CAT.dates.length-1],w=CAT.week[last
 function setTier(t){curTier=t;if(curCity!=='PAN'&&!inScope(curCity)){curCity='PAN';curStores=[];}render();}
 function setRegion(r){curRegion=r;if(curCity!=='PAN'&&!inScope(curCity)){curCity='PAN';curStores=[];}render();}
 function selectCity(c){curCity=c;curStores=[];render();}
+function setPodTopN(v){podTopN=v;renderPods();}
 function toggleStore(id){
   var i=curStores.indexOf(id);
   if(i>=0){curStores.splice(i,1);}else{curStores.push(id);}
@@ -844,7 +853,7 @@ function weeksOf(dates){var seen={},o=[];dates.forEach(function(d){var w=CAT.wee
 function weeksLabel(dates){var ws=weeksOf(dates);return ws.length?('W'+(ws.length>1?ws[0]+'–'+ws[ws.length-1]:ws[0])):'';}
 // single button to clear every filter back to the default landing view
 function resetAll(){
-  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curCity='PAN';curStores=[];
+  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curCity='PAN';curStores=[];podTopN=10;
   articlePending=[];articleSel=[];userPickedDay=false;itemSortLocked=false;
   _catVal='';_subcatVal='';_brandVal='';
   var q=document.getElementById('article-q');if(q)q.value='';renderArticleChips();
@@ -1040,11 +1049,10 @@ function renderPods(){
   var _allPodIG=rows.reduce(function(s,r){return s+r.ig;},0), _allPodN=rows.length;
   var _filtered=curStores.length>0;
   if(_filtered){
-    // show only the checked PODs (no 15-cap)
+    // show only the checked PODs (no Top-N cap)
     rows=rows.filter(function(r){return curStores.indexOf(r.store)>=0;});
-  } else {
-    // default: top 15 by IGCC
-    rows=rows.slice(0,15);
+  } else if(podTopN!=='ALL'){
+    rows=rows.slice(0,+podTopN);
   }
   var _topPodIG=rows.reduce(function(s,r){return s+r.ig;},0);
   var k=podSort.key,dir=podSort.dir;
@@ -1054,7 +1062,7 @@ function renderPods(){
   if(_pe=document.getElementById('th-ptot'))_pe.textContent='Orders ('+_pl+')';
   if(_pe=document.getElementById('th-pig'))_pe.textContent='IGCC ('+_pl+')';
   if(_pe=document.getElementById('th-pinc'))_pe.textContent='IGCC% ('+_pl+')';
-  document.getElementById('h-pods').textContent=_filtered?'Selected PODs ('+rows.length+')':'Top 15 PODs by IGCC';
+  document.getElementById('h-pods').textContent=_filtered?'Selected PODs ('+rows.length+')':(podTopN==='ALL'?'All PODs by IGCC':'Top '+podTopN+' PODs by IGCC');
   var hint=document.getElementById('pods-hint');
   if(hint)hint.textContent=(_filtered?'Filtered: '+curStores.length+' selected PODs':'Store inc ('+span+') · highest-IGCC PODs')+' in '+(curCity==='PAN'?scopeLabel():curCity)+' · '+periodLabel()+' · W32 = 03 Aug–04 Aug · Days in Top10 across '+nDays+' store-days · click headers to sort';
   _lastPodRows=rows;
@@ -1079,7 +1087,7 @@ function renderPods(){
     if(_filtered){
       pf.innerHTML='<strong style="color:#60a5fa;">'+curStores.length+' PODs selected</strong> &nbsp;·&nbsp; '+_topPodIG.toLocaleString()+' IGCC &nbsp;·&nbsp; overall IGCC% = '+(_topPodIG&&rows.reduce(function(s,r){return s+r.tot;},0)?((_topPodIG/rows.reduce(function(s,r){return s+r.tot;},0))*100).toFixed(2)+'%':'—')+' &nbsp;·&nbsp; <span style="cursor:pointer;color:#94a3b8;text-decoration:underline;" onclick="clearStores()">Clear selection</span>';
     } else {
-      var _pp=_allPodIG?(_topPodIG/_allPodIG*100):0; pf.innerHTML='<strong style="color:#c084fc;">Top 15 PODs = '+_pp.toFixed(1)+'% of IGCC</strong> &nbsp;·&nbsp; '+_topPodIG.toLocaleString()+' of '+_allPodIG.toLocaleString()+' IGCC across '+_allPodN+' PODs with data ('+(curCity==='PAN'?scopeLabel():curCity)+' · '+periodLabel()+').';
+      var _topLbl=podTopN==='ALL'?'All':('Top '+podTopN); var _pp=_allPodIG?(_topPodIG/_allPodIG*100):0; pf.innerHTML='<strong style="color:#c084fc;">'+_topLbl+' PODs = '+_pp.toFixed(1)+'% of IGCC</strong> &nbsp;·&nbsp; '+_topPodIG.toLocaleString()+' of '+_allPodIG.toLocaleString()+' IGCC across '+_allPodN+' PODs with data ('+(curCity==='PAN'?scopeLabel():curCity)+' · '+periodLabel()+').';
     }
   }
 }
@@ -1090,7 +1098,7 @@ function exportPodsCSV(){
   var rows=[head].concat(_lastPodRows.map(function(r,i){
     return [i+1,podLabel(r.store),r.store,r.city,'T'+r.tier,r.tot,r.ig,r.inc.toFixed(2),(r.pinc!=null?r.pinc.toFixed(2):''),r.wig,(r.wtot?r.winc.toFixed(2):''),r.topd,rcaText(r.rca),spocText(r.spoc)];
   }));
-  downloadCSV('igcc_top15_pods_'+scopeTag()+'.csv',rows);
+  downloadCSV('igcc_'+(podTopN==='ALL'?'all':'top'+podTopN)+'_pods_'+scopeTag()+'.csv',rows);
 }
 
 function renderCityTable(rows){

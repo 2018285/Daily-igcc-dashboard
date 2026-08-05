@@ -246,7 +246,7 @@
       <span class="badge">132 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 05 Aug 2026 12:34 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 05 Aug 2026 13:04 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -373,7 +373,13 @@
 </div>
 
 <div class="panel" style="margin-bottom:24px;">
-  <div class="panel-header"><h2 class="info" id="h-items">Item Breakdown</h2><span class="edit-hint" id="items-hint" style="margin:0;">Item incidences · click headers to sort</span><button onclick="exportItems()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div class="panel-header"><h2 class="info" id="h-items">Item Breakdown</h2><span class="edit-hint" id="items-hint" style="margin:0;">Item incidences · click headers to sort</span>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
+      <select id="items-topn" onchange="setItemTopN(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;">
+        <option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="25">25</option><option value="30">30</option><option value="ALL">All</option>
+      </select>
+    </label>
+    <button onclick="exportItems()" style="margin-left:8px;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
   <div style="overflow-x:auto;"><table>
     <thead><tr>
       <th>#</th><th>Item Code</th><th>SKU / Article</th>
@@ -397,7 +403,12 @@
   <div class="panel-header">
     <h2 class="info" id="h-arttrend">Article Day-wise Trend</h2>
     <span class="edit-hint" id="arttrend-hint" style="margin:0;">Select articles + city filter above, then view daily IGCC count &amp; incidence% trend</span>
-    <button onclick="exportArticleTrend()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
+      <select id="arttrend-topn" onchange="setArtTopN(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;">
+        <option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="25">25</option><option value="30">30</option><option value="ALL">All</option>
+      </select>
+    </label>
+    <button onclick="exportArticleTrend()" style="margin-left:8px;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button>
   </div>
   <div style="position:relative;height:320px;margin-bottom:16px;"><canvas id="ch-arttrend"></canvas></div>
   <div style="overflow-x:auto;"><table>
@@ -492,7 +503,9 @@ let curStores=[];   // [] = all stores; non-empty = selected store IDs (multi-se
 let dateRange=null;   // {from,to} when a multi-day range is applied
 let ACTSET=null;      // when an article filter is active: {code:1} of in-scope article codes; routes ALL aggregates through item-incidence data
 let citySort={key:'ig',dir:-1}, itemSort={key:'wig',dir:-1}, podSort={key:'ig',dir:-1};
-let podTopN=10;   // PODs table Top-N filter — independent of other tables; 'ALL' = no cap
+let podTopN=10;    // PODs table Top-N filter — independent of other tables; 'ALL' = no cap
+let itemTopN=25;   // Item Breakdown table Top-N filter — independent of other tables; 'ALL' = no cap
+let artTopN=10;    // Article Day-wise Trend Top-N filter (unfiltered view only); 'ALL' = no cap
 let itemSortLocked=false, userPickedDay=false;  // items: W24 IGCC desc by default; day IGCC desc when a day is picked; header-click locks manual sort
 let articlePending=[], articleSel=[];  // multi-article filter for the Item Breakdown table: pending chips vs the applied set
 let chTrend, chTier, chCities;
@@ -704,7 +717,7 @@ function renderArticleTrend(){
     var sb=dates.reduce(function(s,d){return s+(byCode[b]&&byCode[b][d]?byCode[b][d].ig:0);},0);
     return sb-sa;
   });
-  if(!codes)showCodes=showCodes.slice(0,10); // unfiltered: top-10 by IGCC
+  if(!codes&&artTopN!=='ALL')showCodes=showCodes.slice(0,+artTopN); // unfiltered: Top-N by IGCC
 
   // palette
   var COLS=['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#38bdf8','#fb923c','#4ade80','#e879f9',
@@ -752,7 +765,7 @@ function renderArticleTrend(){
 
   // update heading
   var hd=document.getElementById('h-arttrend');
-  if(hd)hd.textContent='Article Day-wise Trend — '+(showCodes.length===1?(ITEMS.names[showCodes[0]]||showCodes[0]):(showCodes.length+' articles'))+' · '+scopeLabel();
+  if(hd)hd.textContent='Article Day-wise Trend — '+(showCodes.length===1?(ITEMS.names[showCodes[0]]||showCodes[0]):(codes?(showCodes.length+' articles'):((artTopN==='ALL'?'All':'Top '+artTopN)+' articles')))+' · '+scopeLabel();
   var hint=document.getElementById('arttrend-hint');
   if(hint)hint.textContent='Daily IGCC% per article · '+periodLabel()+' · '+scopeLabel();
 }
@@ -766,7 +779,7 @@ function exportArticleTrend(){
       .concat(d.dates.map(function(dt){var e=d.byCode[code]&&d.byCode[code][dt]; return e&&e.tot?(e.ig/e.tot*100).toFixed(2)+'%':'—';}))
       .concat([total]);
   }));
-  downloadCSV('igcc_article_trend_'+scopeTag()+'.csv',rows);
+  downloadCSV('igcc_'+(ACTSET?'filtered':(artTopN==='ALL'?'all':'top'+artTopN))+'_article_trend_'+scopeTag()+'.csv',rows);
 }
 
 // ---------- toolbar ----------
@@ -792,6 +805,8 @@ function syncToolbar(){
   document.querySelectorAll('#sel-tier button').forEach(function(b){b.classList.toggle('active',b.dataset.t===curTier);});
   document.querySelectorAll('#sel-region button').forEach(function(b){b.classList.toggle('active',b.dataset.r===curRegion);});
   var ptn=document.getElementById('pods-topn'); if(ptn)ptn.value=String(podTopN);
+  var itn=document.getElementById('items-topn'); if(itn)itn.value=String(itemTopN);
+  var atn=document.getElementById('arttrend-topn'); if(atn)atn.value=String(artTopN);
 }
 function clampDate(d){if(!d)return d; if(d<CAT.dates[0])return CAT.dates[0]; if(d>CAT.dates[CAT.dates.length-1])return CAT.dates[CAT.dates.length-1]; return d;}
 function applyRange(){
@@ -813,6 +828,8 @@ function setTier(t){curTier=t;if(curCity!=='PAN'&&!inScope(curCity)){curCity='PA
 function setRegion(r){curRegion=r;if(curCity!=='PAN'&&!inScope(curCity)){curCity='PAN';curStores=[];}render();}
 function selectCity(c){curCity=c;curStores=[];render();}
 function setPodTopN(v){podTopN=v;renderPods();}
+function setItemTopN(v){itemTopN=v;render();}
+function setArtTopN(v){artTopN=v;renderArticleTrend();}
 function toggleStore(id){
   var i=curStores.indexOf(id);
   if(i>=0){curStores.splice(i,1);}else{curStores.push(id);}
@@ -853,7 +870,7 @@ function weeksOf(dates){var seen={},o=[];dates.forEach(function(d){var w=CAT.wee
 function weeksLabel(dates){var ws=weeksOf(dates);return ws.length?('W'+(ws.length>1?ws[0]+'–'+ws[ws.length-1]:ws[0])):'';}
 // single button to clear every filter back to the default landing view
 function resetAll(){
-  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curCity='PAN';curStores=[];podTopN=10;
+  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;
   articlePending=[];articleSel=[];userPickedDay=false;itemSortLocked=false;
   _catVal='';_subcatVal='';_brandVal='';
   var q=document.getElementById('article-q');if(q)q.value='';renderArticleChips();
@@ -991,7 +1008,7 @@ function render(){
 
   // item rows (Item incidences) + latest-week (W24) and last-day context columns
   if(!itemSortLocked){itemSort={key:(userPickedDay?'dig':(dateRange?'ig':'wig')),dir:-1};}   // single day → Day IGCC↓; range → period IGCC↓; else last week IGCC↓
-  document.getElementById('h-items').textContent=(articleSel.length?('Items — '+articleSel.length+' article'+(articleSel.length>1?'s':'')+' filtered — '):'Top 25 Items — ')+scopeLabel()+' · '+periodLabel();
+  document.getElementById('h-items').textContent=(articleSel.length?('Items — '+articleSel.length+' article'+(articleSel.length>1?'s':'')+' filtered — '):((itemTopN==='ALL'?'All Items — ':'Top '+itemTopN+' Items — ')))+scopeLabel()+' · '+periodLabel();
   var _idates=itemDates();
   var _ilast=_idates.length?_idates[_idates.length-1]:null;
   var _selDay=(!dateRange&&curDate!=='ALL')?curDate:null;                    // a single specific day is selected
@@ -1129,12 +1146,12 @@ function renderItemTable(rows){
   // primary: chosen column (default IGCC count desc) · tie-break: higher orders first
   rows.sort(function(a,b){var d=dir*(a[k]-b[k]); if(d!==0)return d; return b.tot-a.tot;});
   if(articleSel.length){rows=rows.filter(function(r){return articleSel.some(function(t){return articleMatch(r,t);});});}
-  lastItemRows=rows;
   var tb=document.getElementById('tb-items'); var iff=document.getElementById('items-foot');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="14" style="text-align:center;background:rgba(251,191,36,0.08);color:#fbbf24;font-weight:600;padding:20px;border-left:3px solid #fbbf24;">⚠ No Item incidences data for the selected date — this date may not yet be in the master CSV. (Item incidences covers '+fmtD(ITEMS.dates[0])+'–'+fmtD(ITEMS.dates[ITEMS.dates.length-1])+'). Re-download the Item incidences source file and run update.</td></tr>';if(iff)iff.innerHTML='';return;}
+  if(!rows.length){lastItemRows=rows;tb.innerHTML='<tr><td colspan="14" style="text-align:center;background:rgba(251,191,36,0.08);color:#fbbf24;font-weight:600;padding:20px;border-left:3px solid #fbbf24;">⚠ No Item incidences data for the selected date — this date may not yet be in the master CSV. (Item incidences covers '+fmtD(ITEMS.dates[0])+'–'+fmtD(ITEMS.dates[ITEMS.dates.length-1])+'). Re-download the Item incidences source file and run update.</td></tr>';if(iff)iff.innerHTML='';return;}
   var _allItemIG=rows.reduce(function(s,r){return s+r.ig;},0);
-  var _shown=rows.slice(0,25);
+  var _shown=(articleSel.length||itemTopN==='ALL')?rows:rows.slice(0,+itemTopN);
   var _topItemIG=_shown.reduce(function(s,r){return s+r.ig;},0);
+  lastItemRows=_shown;
   function incC(p){return p>2?'color:var(--danger);font-weight:600':p>1?'color:var(--warn)':'';}
   function pctCell(ig,tot,p){return '<td class="num" style="'+incC(p)+'">'+(tot?p.toFixed(2)+'%':'—')+'</td>';}
   tb.innerHTML=_shown.map(function(s,i){
@@ -1227,7 +1244,7 @@ function downloadCSV(name,rows){
 }
 function scopeTag(){var c=curCity!=='PAN'?curCity.replace(/[^A-Za-z0-9]+/g,'-'):('PAN-'+curTier+(curRegion==='ALL'?'':'-'+curRegion));return c+'_'+(dateRange?(dateRange.from+'_to_'+dateRange.to):(curDate==='ALL'?'allDays':curDate));}
 function exportCities(){if(!lastCityRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(CAT.dates[0]+' to '+CAT.dates[CAT.dates.length-1]):curDate);var head=['Day','City','Tier','Region','ORDERS_IGCC','ORDERS_TOTAL','IGCC%','Prev IGCC%','vs Prev pp','vs0.99','Top Item','RCA Bucket'];var rows=[head].concat(lastCityRows.map(function(r){return [day,r.name,'T'+r.tier,r.region,r.ig,r.tot,r.inc.toFixed(2)+'%',(r.prev==null?'':r.prev.toFixed(2)+'%'),(r.prev==null?'':(r.inc-r.prev>=0?'+':'')+(r.inc-r.prev).toFixed(2)),(r.gap>0?'+':'')+r.gap.toFixed(2),r.top,rcaText(r.rca)];}));downloadCSV('igcc_daily_cities_'+scopeTag()+'.csv',rows);}
-function exportItems(){if(!lastItemRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var head=['Day','Scope','Item Code','SKU','Orders','IGCC (period)','inc% (period)','W32 IGCC','W32 inc%','Last Day IGCC','Last Day inc%','Prev inc%','vs Prev pp','Cities','RCA Bucket'];var rows=[head].concat(lastItemRows.map(function(s){return [day,sc,s.code,s.name,s.tot,s.ig,(s.tot?s.inc.toFixed(2)+'%':''),s.wig,(s.wtot?s.winc.toFixed(2)+'%':''),s.dig,(s.dtot?s.dinc.toFixed(2)+'%':''),(s.pinc==null?'':s.pinc.toFixed(2)+'%'),(s.pinc==null?'':(s.inc-s.pinc>=0?'+':'')+(s.inc-s.pinc).toFixed(2)),s.ncity,rcaText(s.rca)];}));downloadCSV('igcc_daily_items_'+scopeTag()+'.csv',rows);}
+function exportItems(){if(!lastItemRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var head=['Day','Scope','Item Code','SKU','Orders','IGCC (period)','inc% (period)','W32 IGCC','W32 inc%','Last Day IGCC','Last Day inc%','Prev inc%','vs Prev pp','Cities','RCA Bucket'];var rows=[head].concat(lastItemRows.map(function(s){return [day,sc,s.code,s.name,s.tot,s.ig,(s.tot?s.inc.toFixed(2)+'%':''),s.wig,(s.wtot?s.winc.toFixed(2)+'%':''),s.dig,(s.dtot?s.dinc.toFixed(2)+'%':''),(s.pinc==null?'':s.pinc.toFixed(2)+'%'),(s.pinc==null?'':(s.inc-s.pinc>=0?'+':'')+(s.inc-s.pinc).toFixed(2)),s.ncity,rcaText(s.rca)];}));downloadCSV('igcc_'+(itemTopN==='ALL'?'all':'top'+itemTopN)+'_items_'+scopeTag()+'.csv',rows);}
 
 // Pop-out link: open this page in a standalone tab. Only shown when embedded
 // (e.g. inside the Apps Script web-app iframe), where breaking out to full screen helps.

@@ -255,7 +255,7 @@
       <span class="badge">132 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 09 Sep 2026 13:03 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 09 Sep 2026 13:14 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -444,6 +444,12 @@
           <option value="ALL">All</option>
         </select>
       </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);" title="Filter images by the dominant SPOC bucket (CX / Pod / Sourcing / WH) responsible for that city+article's IGCC, per Appsheet Summary">RCA SPOC
+        <select id="img-spoc" onchange="setImgSpoc(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;">
+          <option value="ALL">All</option>
+          <option value="CX">CX</option><option value="Pod">Pod</option><option value="Sourcing">Sourcing</option><option value="WH">WH</option>
+        </select>
+      </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show
         <select id="img-topn" onchange="setImgTopN(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;">
           <option value="60">60</option><option value="120">120</option><option value="240">240</option><option value="ALL">All</option>
@@ -556,6 +562,7 @@ let itemTopN=25;   // Item Breakdown table Top-N filter — independent of other
 let artTopN=10;    // Article Day-wise Trend Top-N filter (unfiltered view only); 'ALL' = no cap
 let imgTopN=60;    // Complaint Images tile gallery Top-N filter; 'ALL' = no cap
 let imgIssue='ALL'; // Complaint Images issue-type filter
+let imgSpoc='ALL';  // Complaint Images RCA SPOC-bucket filter (CX/Pod/Sourcing/WH) — matches image's city+item dominant SPOC bucket
 let curView='dashboard'; // 'dashboard' | 'images' — which top-level view tab is showing
 let itemSortLocked=false, userPickedDay=false;  // items: W24 IGCC desc by default; day IGCC desc when a day is picked; header-click locks manual sort
 let articlePending=[], articleSel=[];  // multi-article filter for the Item Breakdown table: pending chips vs the applied set
@@ -894,6 +901,7 @@ function setItemTopN(v){itemTopN=v;render();}
 function setArtTopN(v){artTopN=v;renderArticleTrend();}
 function setImgTopN(v){imgTopN=v;renderImages();}
 function setImgIssue(v){imgIssue=v;renderImages();}
+function setImgSpoc(v){imgSpoc=v;renderImages();}
 function showView(v){
   curView=v;
   document.getElementById('view-dashboard').style.display=(v==='dashboard')?'':'none';
@@ -942,9 +950,10 @@ function weeksOf(dates){var seen={},o=[];dates.forEach(function(d){var w=CAT.wee
 function weeksLabel(dates){var ws=weeksOf(dates);return ws.length?('W'+(ws.length>1?ws[0]+'–'+ws[ws.length-1]:ws[0])):'';}
 // single button to clear every filter back to the default landing view
 function resetAll(){
-  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';
+  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';
   articlePending=[];articleSel=[];userPickedDay=false;itemSortLocked=false;
   var qim=document.getElementById('img-issue');if(qim)qim.value='ALL';
+  var qis=document.getElementById('img-spoc');if(qis)qis.value='ALL';
   var qtn=document.getElementById('img-topn');if(qtn)qtn.value='60';
   _catVal='';_subcatVal='';_brandVal='';
   var q=document.getElementById('article-q');if(q)q.value='';renderArticleChips();
@@ -1115,12 +1124,23 @@ function render(){
 
 // ---- Complaint Images tab (tile gallery + lightbox) ----
 var _lastImgRows=[];
+// Dominant SPOC bucket (CX/Pod/Sourcing/WH) for a given city+item: prefers article-level
+// RCA_SPOC[city][code], falls back to city-level weekly CITY_RCA[city] when no article data exists.
+function imgDomSpoc(c,code){
+  var m=(code&&RCA_SPOC[c])?RCA_SPOC[c][code]:null;
+  if(!m)m=CITY_RCA[c]||null;
+  if(!m)return null;
+  var best=null;
+  SPOC_BUCKETS.forEach(function(b){if(m[b]>0&&(best===null||m[b]>m[best]))best=b;});
+  return best;
+}
 function imgRowInScope(r){
   var d=CHATIMG.dates[r[0]], c=CHATIMG.cities[r[1]], code=r[3];
   if(!isSelDay(d))return false;
   if(curCity!=='PAN'){ if(c!==curCity)return false; if(storeMode()&&curStores.indexOf(r[2])<0)return false; }
   else if(!inScope(c))return false;
   if(imgIssue!=='ALL'&&CHATIMG.issues[r[4]]!==imgIssue)return false;
+  if(imgSpoc!=='ALL'&&imgDomSpoc(c,code)!==imgSpoc)return false;
   if(ACTSET&&code&&!ACTSET[code])return false;
   return true;
 }
@@ -1144,27 +1164,29 @@ function renderImages(){
     tiles.innerHTML=shown.map(function(r,i){
       var d=CHATIMG.dates[r[0]], c=CHATIMG.cities[r[1]], code=r[3], issue=CHATIMG.issues[r[4]];
       var name=ITEMS.names[code]||code||'';
+      var sp=imgDomSpoc(c,code), spTag=sp?('<span class="it-tag" style="background:'+(SPOC_COLORS[sp]||'#94a3b8')+'22;color:'+(SPOC_COLORS[sp]||'#94a3b8')+';margin-left:4px;">'+sp+'</span>'):'';
       return '<div class="img-tile" onclick="openLightbox('+i+')">'+
         '<img src="'+imgUrl(r[6])+'" loading="lazy" alt="complaint image" />'+
         '<div class="img-tile-meta">'+
           '<div class="it-city">'+c+' · '+fmtD(d)+'</div>'+
           (name?('<div>'+String(name).replace(/</g,'&lt;')+'</div>'):'')+
-          '<div class="it-tag">'+issue.replace(/</g,'&lt;')+'</div>'+
+          '<div class="it-tag">'+issue.replace(/</g,'&lt;')+'</div>'+spTag+
         '</div></div>';
     }).join('');
   }
   var foot=document.getElementById('img-foot');
-  if(foot)foot.innerHTML='Showing <strong>'+shown.length.toLocaleString()+'</strong> of <strong>'+total.toLocaleString()+'</strong> complaint images · '+scopeLabel()+' · '+periodLabel()+(imgIssue!=='ALL'?' · '+imgIssue:'')+' <span style="color:var(--text-dim)">(window: last '+CHATIMG.dates.length+' day'+(CHATIMG.dates.length>1?'s':'')+' of chat/image data)</span>';
+  if(foot)foot.innerHTML='Showing <strong>'+shown.length.toLocaleString()+'</strong> of <strong>'+total.toLocaleString()+'</strong> complaint images · '+scopeLabel()+' · '+periodLabel()+(imgIssue!=='ALL'?' · '+imgIssue:'')+(imgSpoc!=='ALL'?' · SPOC: '+imgSpoc:'')+' <span style="color:var(--text-dim)">(window: last '+CHATIMG.dates.length+' day'+(CHATIMG.dates.length>1?'s':'')+' of chat/image data)</span>';
 }
 function openLightbox(i){
   var r=_lastImgRows[i]; if(!r)return;
   var d=CHATIMG.dates[r[0]], c=CHATIMG.cities[r[1]], store=r[2], code=r[3], issue=CHATIMG.issues[r[4]], chat=r[5];
   var name=ITEMS.names[code]||code||'';
+  var sp=imgDomSpoc(c,code), spTag=sp?('<span class="it-tag" style="display:inline-block;margin:4px 0 4px 6px;background:'+(SPOC_COLORS[sp]||'#94a3b8')+'22;color:'+(SPOC_COLORS[sp]||'#94a3b8')+';" title="Dominant RCA SPOC bucket for '+c+' / '+(code||'')+'">RCA SPOC: '+sp+'</span>'):'';
   document.getElementById('lb-img').src=imgUrl(r[6]);
   document.getElementById('lb-meta').innerHTML=
     '<div><strong>'+c+'</strong>'+(store?(' · Store '+store):'')+' · '+fmtD(d)+'</div>'+
     (name?('<div>'+String(name).replace(/</g,'&lt;')+(code?(' (#'+code+')'):'')+'</div>'):'')+
-    '<div class="it-tag" style="display:inline-block;margin:4px 0;">'+issue.replace(/</g,'&lt;')+'</div>'+
+    '<div class="it-tag" style="display:inline-block;margin:4px 0;">'+issue.replace(/</g,'&lt;')+'</div>'+spTag+
     (chat?('<div style="margin-top:6px;">'+String(chat).replace(/</g,'&lt;')+'</div>'):'');
   document.getElementById('img-lightbox').style.display='flex';
 }

@@ -255,7 +255,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 16:45 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 17:03 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -331,6 +331,22 @@
 <div id="view-dashboard">
 <div id="kpi-row" class="kpi-row"></div>
 <div class="gap-banner" id="gap-banner"></div>
+
+<div class="panel" id="panel-execsummary" style="margin-bottom:24px;">
+  <div class="panel-header"><h2 class="accent" id="h-execsummary">Executive Summary — Category-wise IGCC%</h2><span class="edit-hint" style="margin:0;">Item incidences · article L2 category · click headers to sort</span><button onclick="exportCategories()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div style="overflow-x:auto;"><table>
+    <thead><tr>
+      <th data-csort="name">Category</th>
+      <th class="num" data-csort="ig">ORDERS_IGCC</th>
+      <th class="num" data-csort="tot">ORDERS_TOTAL</th>
+      <th class="num" data-csort="inc">IGCC%</th>
+      <th class="num" data-csort="share">Share of IGCC</th>
+      <th class="num" title="IGCC% for the equal-length period immediately before the current selection (Δ vs current)">vs Prev</th>
+      <th class="num" data-csort="gap">Gap vs Target</th>
+    </tr></thead>
+    <tbody id="tb-categories"></tbody>
+  </table></div>
+</div>
 
 <div class="grid-2" style="margin-bottom:24px;">
   <div class="panel">
@@ -556,7 +572,7 @@ let curDate=DEFDATE, curTier='ALL', curRegion='ALL', curServing='ALL', curCity='
 let curStores=[];   // [] = all stores; non-empty = selected store IDs (multi-select)
 let dateRange=null;   // {from,to} when a multi-day range is applied
 let ACTSET=null;      // when an article filter is active: {code:1} of in-scope article codes; routes ALL aggregates through item-incidence data
-let citySort={key:'ig',dir:-1}, itemSort={key:'wig',dir:-1}, podSort={key:'ig',dir:-1};
+let citySort={key:'ig',dir:-1}, itemSort={key:'wig',dir:-1}, podSort={key:'ig',dir:-1}, catSort={key:'ig',dir:-1};
 let podTopN=10;    // PODs table Top-N filter — independent of other tables; 'ALL' = no cap
 let itemTopN=25;   // Item Breakdown table Top-N filter — independent of other tables; 'ALL' = no cap
 let artTopN=10;    // Article Day-wise Trend Top-N filter (unfiltered view only); 'ALL' = no cap
@@ -567,7 +583,7 @@ let curView='dashboard'; // 'dashboard' | 'images' — which top-level view tab 
 let itemSortLocked=false, userPickedDay=false;  // items: W24 IGCC desc by default; day IGCC desc when a day is picked; header-click locks manual sort
 let articlePending=[], articleSel=[];  // multi-article filter for the Item Breakdown table: pending chips vs the applied set
 let chTrend, chTier, chCities;
-let lastItemRows=[], lastCityRows=[];
+let lastItemRows=[], lastCityRows=[], lastCatRows=[];
 
 function fmtD(s){var p=s.split('-');return p[2]+'/'+p[1];}
 function esc(s){return String(s).replace(/'/g,"\\'");}
@@ -1116,6 +1132,27 @@ function render(){
             ncity:Object.keys(it.cities).length,rca:rcaItemMap(cities,code),spoc:spocItemMap(cities,code)};});
   renderItemTable(itemRows);
 
+  // ---- Executive Summary: category-wise IGCC% (one row per L2 article category) ----
+  var imPrevAll=cmp.length?itemAgg(cities,cmp):{};
+  var catMap={}, catPrevMap={};
+  Object.keys(im).forEach(function(code){
+    var cat=(ARTICLE_META[code]&&ARTICLE_META[code].cat)||'Uncategorized';
+    var c=catMap[cat]||(catMap[cat]={ig:0,tot:0});
+    c.ig+=im[code].ig; c.tot+=im[code].tot;
+  });
+  Object.keys(imPrevAll).forEach(function(code){
+    var cat=(ARTICLE_META[code]&&ARTICLE_META[code].cat)||'Uncategorized';
+    var c=catPrevMap[cat]||(catPrevMap[cat]={ig:0,tot:0});
+    c.ig+=imPrevAll[code].ig; c.tot+=imPrevAll[code].tot;
+  });
+  var totalCatIG=Object.keys(catMap).reduce(function(s,k){return s+catMap[k].ig;},0);
+  var catRows=Object.keys(catMap).map(function(cat){
+    var v=catMap[cat], inc=v.tot?(v.ig/v.tot*100):0;
+    var pv=catPrevMap[cat], prevInc=(pv&&pv.tot)?(pv.ig/pv.tot*100):null;
+    return {name:cat,ig:v.ig,tot:v.tot,inc:inc,prev:prevInc,gap:inc-TARGET,share:totalCatIG?(v.ig/totalCatIG*100):0};
+  }).filter(function(r){return r.tot>0;});
+  renderCategoryTable(catRows);
+
   renderPods();
   renderTrend(cities, weekAgg); renderTier();
   renderArticleTrend();
@@ -1297,6 +1334,24 @@ function renderCityTable(rows){
   }).join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
 }
 
+function renderCategoryTable(rows){
+  var k=catSort.key,dir=catSort.dir;
+  rows.sort(function(a,b){var x=a[k],y=b[k];if(typeof x==='string')return dir*x.localeCompare(y);return dir*(x-y);});
+  lastCatRows=rows;
+  document.getElementById('h-execsummary').textContent='Executive Summary — Category-wise IGCC% — '+scopeLabel()+' · '+periodLabel();
+  document.getElementById('tb-categories').innerHTML=rows.map(function(r){
+    var incCls=r.inc>1.5?'color:var(--danger);font-weight:600':r.inc>0.99?'color:var(--warn)':'color:var(--accent)';
+    var gapCls=r.gap>0?'color:var(--danger)':'color:var(--accent)';
+    return '<tr>'+
+      '<td style="font-weight:500">'+esc(r.name)+'</td>'+
+      '<td class="num">'+r.ig.toLocaleString()+'</td><td class="num">'+r.tot.toLocaleString()+'</td>'+
+      '<td class="num" style="'+incCls+'">'+r.inc.toFixed(2)+'%</td>'+
+      '<td class="num">'+r.share.toFixed(1)+'%</td>'+
+      deltaCell(r.inc,r.prev)+
+      '<td class="num" style="'+gapCls+'">'+(r.gap>0?'+':'')+r.gap.toFixed(2)+'</td></tr>';
+  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
+}
+
 function renderItemTable(rows){
   var k=itemSort.key,dir=itemSort.dir;
   // primary: chosen column (default IGCC count desc) · tie-break: higher orders first
@@ -1366,7 +1421,8 @@ function renderCityChart(rows){
 document.addEventListener('click',function(e){
   var th=e.target.closest('th[data-sort]'); if(th){var k=th.dataset.sort;citySort.dir=(citySort.key===k?-citySort.dir:-1);citySort.key=k;render();return;}
   var ti=e.target.closest('th[data-isort]'); if(ti){var k2=ti.dataset.isort;itemSort.dir=(itemSort.key===k2?-itemSort.dir:-1);itemSort.key=k2;itemSortLocked=true;render();return;}
-  var tp=e.target.closest('th[data-psort]'); if(tp){var k3=tp.dataset.psort;podSort.dir=(podSort.key===k3?-podSort.dir:-1);podSort.key=k3;render();}
+  var tp=e.target.closest('th[data-psort]'); if(tp){var k3=tp.dataset.psort;podSort.dir=(podSort.key===k3?-podSort.dir:-1);podSort.key=k3;render();return;}
+  var tc=e.target.closest('th[data-csort]'); if(tc){var k4=tc.dataset.csort;catSort.dir=(catSort.key===k4?-catSort.dir:-1);catSort.key=k4;render();}
 });
 
 // ---------- CSV export ----------
@@ -1401,6 +1457,7 @@ function downloadCSV(name,rows){
 function scopeTag(){var c=curCity!=='PAN'?curCity.replace(/[^A-Za-z0-9]+/g,'-'):('PAN-'+curTier+(curRegion==='ALL'?'':'-'+curRegion)+(curServing==='ALL'?'':'-'+curServing));return c+'_'+(dateRange?(dateRange.from+'_to_'+dateRange.to):(curDate==='ALL'?'allDays':curDate));}
 function exportCities(){if(!lastCityRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(CAT.dates[0]+' to '+CAT.dates[CAT.dates.length-1]):curDate);var head=['Day','City','Tier','Region','ORDERS_IGCC','ORDERS_TOTAL','IGCC%','Prev IGCC%','vs Prev pp','vs0.99','Top Item','RCA Bucket'];var rows=[head].concat(lastCityRows.map(function(r){return [day,r.name,'T'+r.tier,r.region,r.ig,r.tot,r.inc.toFixed(2)+'%',(r.prev==null?'':r.prev.toFixed(2)+'%'),(r.prev==null?'':(r.inc-r.prev>=0?'+':'')+(r.inc-r.prev).toFixed(2)),(r.gap>0?'+':'')+r.gap.toFixed(2),r.top,rcaText(r.rca)];}));downloadCSV('igcc_daily_cities_'+scopeTag()+'.csv',rows);}
 function exportItems(){if(!lastItemRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var head=['Day','Scope','Item Code','SKU','Orders','IGCC (period)','inc% (period)','W38 IGCC','W38 inc%','Last Day IGCC','Last Day inc%','Prev inc%','vs Prev pp','Cities','RCA Bucket'];var rows=[head].concat(lastItemRows.map(function(s){return [day,sc,s.code,s.name,s.tot,s.ig,(s.tot?s.inc.toFixed(2)+'%':''),s.wig,(s.wtot?s.winc.toFixed(2)+'%':''),s.dig,(s.dtot?s.dinc.toFixed(2)+'%':''),(s.pinc==null?'':s.pinc.toFixed(2)+'%'),(s.pinc==null?'':(s.inc-s.pinc>=0?'+':'')+(s.inc-s.pinc).toFixed(2)),s.ncity,rcaText(s.rca)];}));downloadCSV('igcc_'+(itemTopN==='ALL'?'all':'top'+itemTopN)+'_items_'+scopeTag()+'.csv',rows);}
+function exportCategories(){if(!lastCatRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var head=['Day','Scope','Category','ORDERS_IGCC','ORDERS_TOTAL','IGCC%','Share of IGCC','Prev IGCC%','vs Prev pp','Gap vs Target'];var rows=[head].concat(lastCatRows.map(function(r){return [day,sc,r.name,r.ig,r.tot,r.inc.toFixed(2)+'%',r.share.toFixed(1)+'%',(r.prev==null?'':r.prev.toFixed(2)+'%'),(r.prev==null?'':(r.inc-r.prev>=0?'+':'')+(r.inc-r.prev).toFixed(2)),(r.gap>0?'+':'')+r.gap.toFixed(2)];}));downloadCSV('igcc_categories_'+scopeTag()+'.csv',rows);}
 
 // Pop-out link: open this page in a standalone tab. Only shown when embedded
 // (e.g. inside the Apps Script web-app iframe), where breaking out to full screen helps.

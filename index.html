@@ -255,7 +255,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 17:16 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 17:22 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -1371,12 +1371,15 @@ function renderCategoryTable(rows){
 }
 function trendCell(trend){
   if(!trend||!trend.length) return '<td style="color:var(--text-dim)">—</td>';
-  return '<td><span style="display:inline-flex;gap:3px;align-items:center">'+trend.map(function(t){
+  return '<td><div style="display:flex;gap:10px;align-items:flex-end">'+trend.map(function(t){
     var dObj=new Date(t.date), lbl=(dObj.getMonth()+1)+'/'+dObj.getDate();
-    if(t.pct==null) return '<span title="'+lbl+': no data" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--border);opacity:.6"></span>';
-    var ok=t.pct<=TARGET;
-    return '<span title="'+lbl+': '+t.pct.toFixed(2)+'%'+(ok?' (at/below target)':' (above target)')+'" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ok?'var(--accent)':'var(--danger)')+'"></span>';
-  }).join('')+'</span></td>';
+    if(t.pct==null) return '<div style="text-align:center;font-size:10px;min-width:38px;white-space:nowrap"><div style="color:var(--text-dim)">'+lbl+'</div><div style="color:var(--text-dim)">—</div></div>';
+    var ok=t.pct<=TARGET, tri=ok?'▲':'▼', color=ok?'var(--accent)':'var(--danger)';
+    return '<div style="text-align:center;font-size:10px;min-width:38px;white-space:nowrap" title="'+lbl+': '+t.pct.toFixed(2)+'%'+(ok?' (at/below target)':' (above target)')+'">'+
+      '<div style="color:var(--text-dim)">'+lbl+'</div>'+
+      '<div style="color:'+color+';font-weight:600">'+tri+' '+t.pct.toFixed(2)+'%</div>'+
+    '</div>';
+  }).join('')+'</div></td>';
 }
 
 function renderItemTable(rows){

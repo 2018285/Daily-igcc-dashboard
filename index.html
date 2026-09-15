@@ -255,7 +255,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 17:03 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 17:16 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -343,6 +343,7 @@
       <th class="num" data-csort="share">Share of IGCC</th>
       <th class="num" title="IGCC% for the equal-length period immediately before the current selection (Δ vs current)">vs Prev</th>
       <th class="num" data-csort="gap">Gap vs Target</th>
+      <th style="text-align:left" title="Last 10 available Item-incidence days · green = at/below target (0.99%), red = above target, grey = no data that day">10-Day Trend</th>
     </tr></thead>
     <tbody id="tb-categories"></tbody>
   </table></div>
@@ -1146,10 +1147,26 @@ function render(){
     c.ig+=imPrevAll[code].ig; c.tot+=imPrevAll[code].tot;
   });
   var totalCatIG=Object.keys(catMap).reduce(function(s,k){return s+catMap[k].ig;},0);
+  var trendDates=(ITEMS.dates||[]).slice(-10);
+  var trendByCat={};
+  trendDates.forEach(function(d){
+    var imD=itemAgg(cities,[d]);
+    var dayCat={};
+    Object.keys(imD).forEach(function(code){
+      var cat=(ARTICLE_META[code]&&ARTICLE_META[code].cat)||'Uncategorized';
+      var c=dayCat[cat]||(dayCat[cat]={ig:0,tot:0});
+      c.ig+=imD[code].ig; c.tot+=imD[code].tot;
+    });
+    Object.keys(catMap).forEach(function(cat){
+      var arr=trendByCat[cat]||(trendByCat[cat]=[]);
+      var v=dayCat[cat];
+      arr.push({date:d,pct:(v&&v.tot)?(v.ig/v.tot*100):null});
+    });
+  });
   var catRows=Object.keys(catMap).map(function(cat){
     var v=catMap[cat], inc=v.tot?(v.ig/v.tot*100):0;
     var pv=catPrevMap[cat], prevInc=(pv&&pv.tot)?(pv.ig/pv.tot*100):null;
-    return {name:cat,ig:v.ig,tot:v.tot,inc:inc,prev:prevInc,gap:inc-TARGET,share:totalCatIG?(v.ig/totalCatIG*100):0};
+    return {name:cat,ig:v.ig,tot:v.tot,inc:inc,prev:prevInc,gap:inc-TARGET,share:totalCatIG?(v.ig/totalCatIG*100):0,trend:trendByCat[cat]||[]};
   }).filter(function(r){return r.tot>0;});
   renderCategoryTable(catRows);
 
@@ -1348,8 +1365,18 @@ function renderCategoryTable(rows){
       '<td class="num" style="'+incCls+'">'+r.inc.toFixed(2)+'%</td>'+
       '<td class="num">'+r.share.toFixed(1)+'%</td>'+
       deltaCell(r.inc,r.prev)+
-      '<td class="num" style="'+gapCls+'">'+(r.gap>0?'+':'')+r.gap.toFixed(2)+'</td></tr>';
-  }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
+      '<td class="num" style="'+gapCls+'">'+(r.gap>0?'+':'')+r.gap.toFixed(2)+'</td>'+
+      trendCell(r.trend)+'</tr>';
+  }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
+}
+function trendCell(trend){
+  if(!trend||!trend.length) return '<td style="color:var(--text-dim)">—</td>';
+  return '<td><span style="display:inline-flex;gap:3px;align-items:center">'+trend.map(function(t){
+    var dObj=new Date(t.date), lbl=(dObj.getMonth()+1)+'/'+dObj.getDate();
+    if(t.pct==null) return '<span title="'+lbl+': no data" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--border);opacity:.6"></span>';
+    var ok=t.pct<=TARGET;
+    return '<span title="'+lbl+': '+t.pct.toFixed(2)+'%'+(ok?' (at/below target)':' (above target)')+'" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ok?'var(--accent)':'var(--danger)')+'"></span>';
+  }).join('')+'</span></td>';
 }
 
 function renderItemTable(rows){

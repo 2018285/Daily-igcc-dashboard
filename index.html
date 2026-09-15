@@ -255,7 +255,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 13:20 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Sep 2026 16:45 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -1134,9 +1134,10 @@ function imgDomSpoc(c,code){
   SPOC_BUCKETS.forEach(function(b){if(m[b]>0&&(best===null||m[b]>m[best]))best=b;});
   return best;
 }
+var imgDateFallback=false; // true when the current global date selection has zero overlap with CHATIMG's own (narrower) date window — ignore date gating so the tab isn't always empty
 function imgRowInScope(r){
   var d=CHATIMG.dates[r[0]], c=CHATIMG.cities[r[1]], code=r[3];
-  if(!isSelDay(d))return false;
+  if(!imgDateFallback&&!isSelDay(d))return false;
   if(curCity!=='PAN'){ if(c!==curCity)return false; if(storeMode()&&curStores.indexOf(r[2])<0)return false; }
   else if(!inScope(c))return false;
   if(imgIssue!=='ALL'&&CHATIMG.issues[r[4]]!==imgIssue)return false;
@@ -1146,6 +1147,7 @@ function imgRowInScope(r){
 }
 function imgUrl(path){return /^https?:\/\//i.test(path)?path:(CHATIMG.imgPrefix+path);}
 function renderImages(){
+  imgDateFallback=!CHATIMG.dates.some(function(d){return isSelDay(d);});
   var selEl=document.getElementById('img-issue');
   if(selEl&&selEl.options.length!==CHATIMG.issues.length+1){
     var cur=selEl.value;
@@ -1175,7 +1177,7 @@ function renderImages(){
     }).join('');
   }
   var foot=document.getElementById('img-foot');
-  if(foot)foot.innerHTML='Showing <strong>'+shown.length.toLocaleString()+'</strong> of <strong>'+total.toLocaleString()+'</strong> complaint images · '+scopeLabel()+' · '+periodLabel()+(imgIssue!=='ALL'?' · '+imgIssue:'')+(imgSpoc!=='ALL'?' · SPOC: '+imgSpoc:'')+' <span style="color:var(--text-dim)">(window: last '+CHATIMG.dates.length+' day'+(CHATIMG.dates.length>1?'s':'')+' of chat/image data)</span>';
+  if(foot)foot.innerHTML='Showing <strong>'+shown.length.toLocaleString()+'</strong> of <strong>'+total.toLocaleString()+'</strong> complaint images · '+scopeLabel()+' · '+(imgDateFallback?'all available dates (selected date has no image data)':periodLabel())+(imgIssue!=='ALL'?' · '+imgIssue:'')+(imgSpoc!=='ALL'?' · SPOC: '+imgSpoc:'')+' <span style="color:var(--text-dim)">(window: last '+CHATIMG.dates.length+' day'+(CHATIMG.dates.length>1?'s':'')+' of chat/image data)</span>';
 }
 function openLightbox(i){
   var r=_lastImgRows[i]; if(!r)return;

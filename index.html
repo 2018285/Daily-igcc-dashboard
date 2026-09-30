@@ -264,7 +264,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 30 Sep 2026 12:44 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 30 Sep 2026 13:37 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -1022,8 +1022,8 @@ function renderStoreBar(){
   var badge=selCount?('<span class="badge warn">'+selCount+' store'+(selCount>1?'s':'')+' selected · <a href="#" onclick="clearStores();return false;" style="color:#f87171;text-decoration:none;">Clear</a></span>'):('<span class="badge">'+ss.length+' stores in '+curCity+' · ranked by IGCC · Store inc '+span+'</span>');
   // build checkbox panel
   var q=_storeSearchQ.toLowerCase().trim();
-  var visible=q?ss.filter(function(x){var label=podLabel(x.s).toLowerCase();return label.indexOf(q)>=0||x.s.indexOf(q)>=0;}):ss;
-  var items=visible.map(function(x){
+  // collapsed by default: only show store checkboxes once the user starts searching
+  var items=q?(ss.filter(function(x){var label=podLabel(x.s).toLowerCase();return label.indexOf(q)>=0||x.s.indexOf(q)>=0;}).map(function(x){
     var chk=curStores.indexOf(x.s)>=0;
     var lbl=podLabel(x.s);
     var hl=lbl;
@@ -1032,7 +1032,8 @@ function renderStoreBar(){
       '<input type="checkbox" '+(chk?'checked':'')+' style="margin-right:6px;accent-color:#60a5fa;">'+
       '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+hl+' <span style="color:var(--text-dim);font-size:10px;">#'+x.s+'</span></span>'+
       '<span style="margin-left:6px;font-size:10px;white-space:nowrap;'+(x.p>1.5?'color:var(--danger)':x.p>0.99?'color:var(--warn)':'color:var(--accent)')+'">'+x.p.toFixed(2)+'% · '+x.ig+'</span></label>';
-  }).join('');
+  }).join('')):'';
+  var visible=q?ss.filter(function(x){var label=podLabel(x.s).toLowerCase();return label.indexOf(q)>=0||x.s.indexOf(q)>=0;}):[];
   var allChk=(visible.length>0&&visible.every(function(x){return curStores.indexOf(x.s)>=0;}));
   el.innerHTML='<div class="store-panel">'+
     '<div class="store-panel-head">'+
@@ -1041,7 +1042,7 @@ function renderStoreBar(){
       '<div style="position:relative;flex:1;min-width:140px;max-width:220px;">'+
         '<input id="store-search" type="text" placeholder="🔍  search POD name / ID…" value="'+_storeSearchQ.replace(/"/g,'&quot;')+'" oninput="_storeSearchQ=this.value;renderStoreBar();" style="width:100%;box-sizing:border-box;background:#1a2332;color:#e8ecef;border:1px solid var(--border);padding:5px 8px;border-radius:6px;font-size:12px;">'+
         (_storeSearchQ?'<span onclick="_storeSearchQ=\'\';renderStoreBar();" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);cursor:pointer;color:#94a3b8;font-size:14px;">×</span>':'')+'</div>'+
-      '<label style="font-size:11px;color:#94a3b8;cursor:pointer;white-space:nowrap;">'+
+      '<label style="font-size:11px;color:#94a3b8;cursor:pointer;white-space:nowrap;'+(q?'':'opacity:.4;')+'">'+
         '<input type="checkbox" '+(allChk?'checked':'')+' style="accent-color:#60a5fa;margin-right:4px;" onchange="_toggleAllVisible(this.checked)">All visible</label>'+
     '</div>'+
     '<div class="store-cb-list">'+items+'</div>'+

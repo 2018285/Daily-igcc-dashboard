@@ -264,7 +264,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 30 Sep 2026 15:11 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 30 Sep 2026 15:22 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -1431,7 +1431,8 @@ function renderImpact(cityRows, scopeAgg, scopePct){
     var pp=scopeAgg[1]?r.ig/scopeAgg[1]*100:0;                       // pp-contribution to overall %
     var excess=Math.max(0,Math.round(r.tot*(r.inc-TARGET)/100));      // IGCC orders above target
     var fixedPct=scopeAgg[1]?((scopeAgg[0]-excess)/scopeAgg[1]*100):null; // overall if this city alone hits target
-    return Object.assign({},r,{pp:pp,excess:excess,fixedPct:fixedPct});
+    var share=scopeAgg[0]?(r.ig/scopeAgg[0]*100):0;                   // city share of scope IGCC orders
+    return Object.assign({},r,{pp:pp,excess:excess,fixedPct:fixedPct,share:share});
   });
   var k=impactSort.key,dir=impactSort.dir;
   rows.sort(function(a,b){
@@ -1484,6 +1485,7 @@ function exportImpact(){
 }
 
 function renderCategoryTable(rows){
+  var k=catSort.key,dir=catSort.dir;
   rows.sort(function(a,b){var x=a[k],y=b[k];if(typeof x==='string')return dir*x.localeCompare(y);return dir*(x-y);});
   lastCatRows=rows;
   document.getElementById('h-execsummary').textContent='Executive Summary — Category-wise IGCC% — '+scopeLabel()+' · '+periodLabel();

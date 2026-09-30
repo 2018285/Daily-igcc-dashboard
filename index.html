@@ -264,7 +264,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 30 Sep 2026 14:55 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 30 Sep 2026 15:11 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -333,6 +333,7 @@
 <div class="view-tabs" id="view-tabs" style="display:flex;gap:8px;margin-bottom:18px;">
   <button class="view-tab-btn active" id="vt-exec" onclick="showView('exec')">📈 Executive Summary</button>
   <button class="view-tab-btn" id="vt-dashboard" onclick="showView('dashboard')">📊 Dashboard</button>
+  <button class="view-tab-btn" id="vt-impact" onclick="showView('impact')">🎯 IGCC Impact</button>
   <button class="view-tab-btn" id="vt-images" onclick="showView('images')">🖼️ Complaint Images</button>
 </div>
 
@@ -394,25 +395,6 @@
   </table></div>
 </div>
 
-<div class="panel" id="panel-impact" style="margin-bottom:24px;">
-  <div class="panel-header"><h2 class="danger" style="color:var(--danger)" id="h-impact">IGCC Impact — City Contribution</h2><span class="edit-hint" style="margin:0;">which cities push the overall IGCC% up · sorted by impact · click headers to sort</span><button onclick="exportImpact()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
-  <div style="overflow-x:auto;"><table>
-    <thead><tr>
-      <th data-impsort="name">City</th><th>Tier</th>
-      <th class="num" data-impsort="ig">IGCC</th><th class="num" data-impsort="tot">Orders</th>
-      <th class="num" data-impsort="inc" title="City's own IGCC% over the selected period">IGCC%</th>
-      <th class="num" data-impsort="pp" title="pp-contribution to the overall scope IGCC% = city IGCC ÷ scope orders × 100. Higher = this city pushes the overall % up more.">Impact (pp)</th>
-      <th class="num" data-impsort="share" title="City's share of total scope IGCC orders">Share of IGCC</th>
-      <th class="num" data-impsort="excess" title="IGCC orders above the active target (0.99% through Sep 2026, 1.25% from Oct 2026). If this city drops to target, the scope overall improves by this many orders.">IGCC over target</th>
-      <th class="num" data-impsort="newpct" title="What the scope overall IGCC% would become if this single city dropped to the active target (all else unchanged)">Overall if fixed</th>
-      <th class="num" data-impsort="prev" title="Change vs previous equal-length period (pp)">vs Prev</th>
-      <th data-impsort="rca" title="Dominant RCA root-cause bucket for this city">RCA Bucket</th>
-      <th title="SPOC Level for this city">SPOC Level</th>
-      <th style="text-align:left" title="Auto-generated action for this city, from its RCA bucket, SPOC split and gap vs target">Suggested Action</th>
-    </tr></thead><tbody id="tb-impact"></tbody>
-  </table></div>
-  <div id="impact-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
-</div>
 
 <div class="panel" id="panel-pods" style="margin-bottom:24px;">
   <div class="panel-header"><h2 class="purple" id="h-pods">Top 15 PODs by IGCC</h2><span class="edit-hint" id="pods-hint" style="margin:0;">Store inc · highest-IGCC stores · click headers to sort</span>
@@ -483,6 +465,28 @@
     <tbody id="tb-arttrend"></tbody>
   </table></div>
   <div id="arttrend-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
+</div>
+</div>
+
+<div id="view-impact" style="display:none;">
+<div class="panel" id="panel-impact" style="margin-bottom:24px;">
+  <div class="panel-header"><h2 class="danger" style="color:var(--danger)" id="h-impact">IGCC Impact — City Contribution</h2><span class="edit-hint" style="margin:0;">which cities push the overall IGCC% up · sorted by impact · click headers to sort · click a row to drill into the city</span><button onclick="exportImpact()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div style="overflow-x:auto;"><table>
+    <thead><tr>
+      <th data-impsort="name">City</th><th>Tier</th>
+      <th class="num" data-impsort="ig">IGCC</th><th class="num" data-impsort="tot">Orders</th>
+      <th class="num" data-impsort="inc" title="City's own IGCC% over the selected period">IGCC%</th>
+      <th class="num" data-impsort="pp" title="pp-contribution to the overall scope IGCC% = city IGCC ÷ scope orders × 100. Higher = this city pushes the overall % up more.">Impact (pp)</th>
+      <th class="num" data-impsort="share" title="City's share of total scope IGCC orders">Share of IGCC</th>
+      <th class="num" data-impsort="excess" title="IGCC orders above the active target (0.99% through Sep 2026, 1.25% from Oct 2026). If this city drops to target, the scope overall improves by this many orders.">IGCC over target</th>
+      <th class="num" data-impsort="newpct" title="What the scope overall IGCC% would become if this single city dropped to the active target (all else unchanged)">Overall if fixed</th>
+      <th class="num" data-impsort="prev" title="Change vs previous equal-length period (pp)">vs Prev</th>
+      <th data-impsort="rca" title="Dominant RCA root-cause bucket for this city">RCA Bucket</th>
+      <th title="SPOC Level for this city">SPOC Level</th>
+      <th style="text-align:left" title="Auto-generated action for this city, from its RCA bucket, SPOC split and gap vs target">Suggested Action</th>
+    </tr></thead><tbody id="tb-impact"></tbody>
+  </table></div>
+  <div id="impact-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
 </div>
 </div>
 
@@ -967,9 +971,11 @@ function showView(v){
   curView=v;
   document.getElementById('view-exec').style.display=(v==='exec')?'':'none';
   document.getElementById('view-dashboard').style.display=(v==='dashboard')?'':'none';
+  document.getElementById('view-impact').style.display=(v==='impact')?'':'none';
   document.getElementById('view-images').style.display=(v==='images')?'':'none';
   document.getElementById('vt-exec').classList.toggle('active',v==='exec');
   document.getElementById('vt-dashboard').classList.toggle('active',v==='dashboard');
+  document.getElementById('vt-impact').classList.toggle('active',v==='impact');
   document.getElementById('vt-images').classList.toggle('active',v==='images');
   if(v==='images')renderImages();
 }

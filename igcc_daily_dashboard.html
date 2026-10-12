@@ -264,7 +264,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 12 Oct 2026 13:16 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 12 Oct 2026 14:48 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -490,7 +490,13 @@
 </div>
 
 <div class="panel" id="panel-impact-topitems" style="margin-bottom:24px;">
-  <div class="panel-header"><h2 class="warn" id="h-impact-items">Top 5 Articles to Deep-Dive</h2><span class="edit-hint" id="impact-items-hint" style="margin:0;">biggest IGCC drivers across the above-target cities in scope · ranked by recoverable IGCC</span><button onclick="exportImpactItems()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div class="panel-header"><h2 class="warn" id="h-impact-items">Top 5 Articles to Deep-Dive</h2><span class="edit-hint" id="impact-items-hint" style="margin:0;">biggest IGCC drivers across the above-target cities in scope · ranked by recoverable IGCC</span>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
+      <select id="impact-items-topn" onchange="setImpactItemsTopN(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;">
+        <option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="ALL">All</option>
+      </select>
+    </label>
+    <button onclick="exportImpactItems()" style="margin-left:8px;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
   <div id="impact-items-intro" style="font-size:12px;color:#94a3b8;margin-bottom:10px;"></div>
   <div style="overflow-x:auto;"><table>
     <thead><tr>
@@ -505,6 +511,7 @@
       <th style="text-align:left" title="Auto-generated deep-dive action">Deep-Dive Action</th>
     </tr></thead><tbody id="tb-impact-items"></tbody>
   </table></div>
+  <div id="impact-items-final" style="margin-top:14px;padding:12px 14px;background:rgba(245,158,11,0.08);border-left:3px solid var(--warn);border-radius:6px;font-size:13px;line-height:1.7;"></div>
   <div id="impact-items-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
 </div>
 </div>
@@ -641,6 +648,7 @@ let impactSort={key:'pp',dir:-1};   // IGCC Impact table — default: biggest pp
 var _lastImpactRows=[];
 let podTopN=10;    // PODs table Top-N filter — independent of other tables; 'ALL' = no cap
 let itemTopN=25;   // Item Breakdown table Top-N filter — independent of other tables; 'ALL' = no cap
+let impactItemsTopN=5;   // Impact tab Top-Articles filter — 'ALL' = no cap
 let artTopN=10;    // Article Day-wise Trend Top-N filter (unfiltered view only); 'ALL' = no cap
 let imgTopN=60;    // Complaint Images tile gallery Top-N filter; 'ALL' = no cap
 let imgIssue='ALL'; // Complaint Images issue-type filter
@@ -956,6 +964,7 @@ function syncToolbar(){
   var sw=document.getElementById('sel-serving-wh'); if(sw)sw.value=(curServing!=='ALL'&&curServing!=='DSD')?curServing:'';
   var ptn=document.getElementById('pods-topn'); if(ptn)ptn.value=String(podTopN);
   var itn=document.getElementById('items-topn'); if(itn)itn.value=String(itemTopN);
+  var iitn=document.getElementById('impact-items-topn'); if(iitn)iitn.value=String(impactItemsTopN);
   var atn=document.getElementById('arttrend-topn'); if(atn)atn.value=String(artTopN);
 }
 function clampDate(d){if(!d)return d; if(d<CAT.dates[0])return CAT.dates[0]; if(d>CAT.dates[CAT.dates.length-1])return CAT.dates[CAT.dates.length-1]; return d;}
@@ -980,6 +989,7 @@ function setServing(v){if(v===''||v==null)return;curServing=v;if(curCity!=='PAN'
 function selectCity(c){curCity=c;curStores=[];render();}
 function setPodTopN(v){podTopN=v;renderPods();}
 function setItemTopN(v){itemTopN=v;render();}
+function setImpactItemsTopN(v){impactItemsTopN=v;render();}
 function setArtTopN(v){artTopN=v;renderArticleTrend();}
 function setImgTopN(v){imgTopN=v;renderImages();}
 function setImgIssue(v){imgIssue=v;renderImages();}
@@ -1036,7 +1046,7 @@ function weeksOf(dates){var seen={},o=[];dates.forEach(function(d){var w=CAT.wee
 function weeksLabel(dates){var ws=weeksOf(dates);return ws.length?('W'+(ws.length>1?ws[0]+'–'+ws[ws.length-1]:ws[0])):'';}
 // single button to clear every filter back to the default landing view
 function resetAll(){
-  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';
+  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';impactItemsTopN=5;
   articlePending=[];articleSel=[];userPickedDay=false;itemSortLocked=false;
   var qim=document.getElementById('img-issue');if(qim)qim.value='ALL';
   var qis=document.getElementById('img-spoc');if(qis)qis.value='ALL';
@@ -1558,17 +1568,19 @@ function renderImpactItems(cities, dates){
   }).filter(function(r){return r.inc>TARGET;});
   // rank by recoverable IGCC (the actual reduction levers), tie-break by raw IGCC
   rows.sort(function(a,b){return b.recover-a.recover||b.ig-a.ig;});
-  var top5=rows.slice(0,5);
-  _lastImpactItemRows=top5;
+  var shown=(impactItemsTopN==='ALL')?rows:rows.slice(0,+impactItemsTopN);
+  _lastImpactItemRows=shown;
   var offTotIG=rows.reduce(function(s,r){return s+r.ig;},0);
   var totRecover=rows.reduce(function(s,r){return s+r.recover;},0);
-  document.getElementById('h-impact-items').textContent='Top 5 Articles to Deep-Dive — '+offCities.length+' cities above '+TARGET.toFixed(2)+'% · '+scopeLabel()+' · '+periodLabel();
+  var shownRecover=shown.reduce(function(s,r){return s+r.recover;},0);
+  document.getElementById('h-impact-items').textContent=((impactItemsTopN==='ALL')?'Top Articles':'Top '+impactItemsTopN+' Articles')+' to Deep-Dive — '+offCities.length+' cities above '+TARGET.toFixed(2)+'% · '+scopeLabel()+' · '+periodLabel();
   if(intro)intro.innerHTML='Scope: the <strong style="color:var(--danger)">'+offCities.length+' above-target cities</strong> in the current view ('+offCities.slice(0,8).join(', ')+(offCities.length>8?' +'+(offCities.length-8)+' more':'')+'). Fixing these articles brings the biggest IGCC reduction — ranked by recoverable orders.';
-  if(!top5.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-dim);padding:20px">No article-level data for the above-target cities in this period.</td></tr>';if(foot)foot.innerHTML='';return;}
-  tb.innerHTML=top5.map(function(r,i){
+  var fin=document.getElementById('impact-items-final');
+  if(!shown.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-dim);padding:20px">No article-level data for the above-target cities in this period.</td></tr>';if(foot)foot.innerHTML='';if(fin)fin.innerHTML='';return;}
+  tb.innerHTML=shown.map(function(r,i){
     var incCls=r.inc>3?'color:var(--danger);font-weight:600':r.inc>TARGET?'color:var(--warn)':'color:var(--accent)';
     var wc=r.worstCities.map(function(w){return '<span title="'+w.city+': '+w.ig+' IGCC / '+w.tot+' orders = '+w.inc.toFixed(2)+'%" style="margin-right:6px;white-space:nowrap">'+w.city+' <span style="color:var(--text-dim);font-size:10px">'+w.inc.toFixed(1)+'%</span></span>';}).join('');
-    var maxR=top5[0].recover||1;
+    var maxR=shown[0].recover||1;
     var bw=Math.max(2,Math.min(100,r.recover/maxR*100));
     return '<tr>'+
       '<td>'+(i+1)+'</td><td style="color:var(--text-dim)">'+r.code+'</td><td style="font-weight:500">'+r.name+'</td>'+
@@ -1581,7 +1593,22 @@ function renderImpactItems(cities, dates){
       '<td style="font-size:11px">'+spocCell(r.spoc)+'</td>'+
       '<td style="font-size:11px;max-width:340px;min-width:220px;white-space:normal;line-height:1.5;color:var(--text-dim)">'+impactItemAction(r,offTotIG)+'</td></tr>';
   }).join('');
-  if(foot)foot.innerHTML='<strong style="color:var(--warn);">Top 5 articles = '+(_lastImpactItemRows.reduce(function(s,r){return s+r.recover;},0)).toLocaleString()+' recoverable IGCC orders</strong> of '+totRecover.toLocaleString()+' total recoverable across '+rows.length+' articles &nbsp;·&nbsp; all above-target cities combined: '+offTotIG.toLocaleString()+' IGCC orders in '+periodLabel();
+  if(fin){
+    // Final combined number: what the above-target cities' IGCC and IGCC% become if ALL shown articles
+    // drop to the 1.25% target (recoverable removed, everything else unchanged).
+    var shownIg=shown.reduce(function(s,r){return s+r.ig;},0);
+    var shownTot=shown.reduce(function(s,r){return s+r.tot;},0);
+    var offAgg=catAgg(offCities,dates);
+    var finalIg=offAgg[0]-shownRecover;
+    var finalPct=offAgg[1]?(finalIg/offAgg[1]*100):0;
+    var curPct=offAgg[1]?(offAgg[0]/offAgg[1]*100):0;
+    var nLbl=(impactItemsTopN==='ALL')?('all '+shown.length+' listed articles'):(shown.length+' listed article'+(shown.length>1?'s':''));
+    fin.innerHTML='<strong style="color:var(--warn);font-size:13px;">🎯 Final number if these '+nLbl+' are fixed to the '+TARGET.toFixed(2)+'% target:</strong> '
+      +'<span style="font-weight:600;">−'+shownRecover.toLocaleString()+' IGCC orders</span> → above-target cities go from <strong>'+offAgg[0].toLocaleString()+'</strong> to <strong style="color:var(--accent)">'+finalIg.toLocaleString()+'</strong> IGCC orders, '
+      +'and their combined IGCC% drops from <strong>'+curPct.toFixed(2)+'%</strong> to <strong style="color:var(--accent)">'+finalPct.toFixed(2)+'%</strong> (target '+TARGET.toFixed(2)+'%) · scope: '+offCities.length+' above-target cities · '+periodLabel()
+      +(shown.length<rows.length?'<div style="margin-top:4px;font-size:11px;color:#94a3b8;">Remaining '+ (rows.length-shown.length) +' unlisted articles still hold '+ (totRecover-shownRecover).toLocaleString() +' more recoverable orders — increase "Show Top" to include them.</div>':'');
+  }
+  if(foot)foot.innerHTML='<strong style="color:var(--warn);">'+(impactItemsTopN==='ALL'?('All '+shown.length+' articles'):('Top '+shown.length+' articles'))+' = '+shownRecover.toLocaleString()+' recoverable IGCC orders</strong> of '+totRecover.toLocaleString()+' total recoverable across '+rows.length+' articles &nbsp;·&nbsp; all above-target cities combined: '+offTotIG.toLocaleString()+' IGCC orders in '+periodLabel();
 }
 function exportImpactItems(){
   if(!_lastImpactItemRows.length){toast('Nothing to export');return;}
@@ -1592,7 +1619,7 @@ function exportImpactItems(){
     var wc=r.worstCities.map(function(w){return w.city+' ('+w.inc.toFixed(2)+'%)';}).join(' | ');
     return [i+1,r.code,r.name,r.ig,r.tot,r.inc.toFixed(2),(r.ig?((r.ig/_lastImpactItemRows.reduce(function(s,x){return s+x.ig;},0))*100).toFixed(1):'0'),r.recover,wc,(rcaT?rcaT.label+' ('+rcaT.share.toFixed(0)+'%)':''),spocTxt,impactItemAction(r,null)];
   }));
-  downloadCSV('igcc_impact_top5_items_'+scopeTag()+'.csv',rows);
+  downloadCSV('igcc_impact_top'+(impactItemsTopN==='ALL'?'all':impactItemsTopN)+'_items_'+scopeTag()+'.csv',rows);
 }
 
 function renderCategoryTable(rows){

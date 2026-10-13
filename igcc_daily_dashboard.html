@@ -838,7 +838,6 @@ function renderArticleTrend(){
 
   // determine which article codes to show
   var codes=ACTSET?Object.keys(ACTSET):null;
-  if(codes&&codes.length>20)codes=codes.slice(0,20);  // cap at 20 lines for readability
 
   // aggregate: for each date, per code: Σ IGCC / Σ orders across scope cities
   var byCode={};  // code → {date: {ig,tot}}
@@ -866,7 +865,7 @@ function renderArticleTrend(){
     var sb=dates.reduce(function(s,d){return s+(byCode[b]&&byCode[b][d]?byCode[b][d].ig:0);},0);
     return sb-sa;
   });
-  if(!codes&&artTopN!=='ALL')showCodes=showCodes.slice(0,+artTopN); // unfiltered: Top-N by IGCC
+  if(artTopN!=='ALL')showCodes=showCodes.slice(0,+artTopN); // Top-N by IGCC (applies with or without the article filter)
 
   // palette
   var COLS=['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#38bdf8','#fb923c','#4ade80','#e879f9',

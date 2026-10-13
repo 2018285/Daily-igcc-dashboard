@@ -1665,7 +1665,7 @@ function renderItemTable(rows){
   var tb=document.getElementById('tb-items'); var iff=document.getElementById('items-foot');
   if(!rows.length){lastItemRows=rows;tb.innerHTML='<tr><td colspan="14" style="text-align:center;background:rgba(251,191,36,0.08);color:#fbbf24;font-weight:600;padding:20px;border-left:3px solid #fbbf24;">⚠ No Item incidences data for the selected date — this date may not yet be in the master CSV. (Item incidences covers '+fmtD(ITEMS.dates[0])+'–'+fmtD(ITEMS.dates[ITEMS.dates.length-1])+'). Re-download the Item incidences source file and run update.</td></tr>';if(iff)iff.innerHTML='';return;}
   var _allItemIG=rows.reduce(function(s,r){return s+r.ig;},0);
-  var _shown=(articleSel.length||itemTopN==='ALL')?rows:rows.slice(0,+itemTopN);
+  var _shown=(itemTopN==='ALL')?rows:rows.slice(0,+itemTopN);
   var _topItemIG=_shown.reduce(function(s,r){return s+r.ig;},0);
   lastItemRows=_shown;
   function incC(p){return p>2?'color:var(--danger);font-weight:600':p>1?'color:var(--warn)':'';}

@@ -278,7 +278,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Oct 2026 14:05 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Oct 2026 21:40 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -503,6 +503,22 @@
   <div id="impact-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
 </div>
 
+<div class="panel" id="panel-impact-daily" style="margin-bottom:24px;">
+  <div class="panel-header"><h2 style="color:var(--purple,#a78bfa)" id="h-impact-daily">Daily IGCC% Trend</h2><span class="edit-hint" style="margin:0;">day-by-day IGCC% for the selected scope &amp; period · click a point or row to pick that day · green = at/below target</span><button onclick="exportImpactDaily()" style="margin-left:auto;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div id="impact-daily-chart-wrap" style="height:260px;margin-bottom:14px;"><canvas id="ch-impact-daily"></canvas></div>
+  <div style="overflow-x:auto;"><table>
+    <thead><tr>
+      <th data-idsort="d">Date</th>
+      <th class="num" data-idsort="inc">IGCC%</th>
+      <th class="num" data-idsort="ig">IGCC</th>
+      <th class="num" data-idsort="tot">Orders</th>
+      <th class="num" data-idsort="prev" title="Change vs the previous available day (pp)">vs Prev Day</th>
+      <th data-idsort="st">vs Target</th>
+    </tr></thead><tbody id="tb-impact-daily"></tbody>
+  </table></div>
+  <div id="impact-daily-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
+</div>
+
 <div class="panel" id="panel-impact-topitems" style="margin-bottom:24px;">
   <div class="panel-header"><h2 class="warn" id="h-impact-items">Top 5 Articles to Deep-Dive</h2><span class="edit-hint" id="impact-items-hint" style="margin:0;">biggest IGCC drivers across the above-target cities in scope · ranked by recoverable IGCC</span>
     <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
@@ -690,7 +706,9 @@ let imgSpoc='ALL';  // Complaint Images RCA SPOC-bucket filter (CX/Pod/Sourcing/
 let curView='exec'; // 'exec' | 'dashboard' | 'images' — which top-level view tab is showing
 let itemSortLocked=false, userPickedDay=false;  // items: W24 IGCC desc by default; day IGCC desc when a day is picked; header-click locks manual sort
 let articlePending=[], articleSel=[];  // multi-article filter for the Item Breakdown table: pending chips vs the applied set
-let chTrend, chTier, chCities;
+let chTrend, chTier, chCities, chImpactDaily;
+let impactDailySort={key:'d',dir:-1};   // Daily IGCC% Trend table — newest day first by default
+var _lastImpactDailyRows=[];
 let lastItemRows=[], lastCityRows=[], lastCatRows=[];
 
 function fmtD(s){var p=s.split('-');return p[2]+'/'+p[1];}
@@ -1080,7 +1098,7 @@ function weeksOf(dates){var seen={},o=[];dates.forEach(function(d){var w=CAT.wee
 function weeksLabel(dates){var ws=weeksOf(dates);return ws.length?('W'+(ws.length>1?ws[0]+'–'+ws[ws.length-1]:ws[0])):'';}
 // single button to clear every filter back to the default landing view
 function resetAll(){
-  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';impactItemsTopN=5;impactStoreSort={key:'reduceprev',dir:-1};
+  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';impactItemsTopN=5;impactStoreSort={key:'reduceprev',dir:-1};impactDailySort={key:'d',dir:-1};
   articlePending=[];articleSel=[];userPickedDay=false;itemSortLocked=false;
   var qim=document.getElementById('img-issue');if(qim)qim.value='ALL';
   var qis=document.getElementById('img-spoc');if(qis)qis.value='ALL';
@@ -1221,6 +1239,7 @@ function render(){
   renderCityTable(cityRows); renderCityChart(cityRows);
   renderImpact(cityRows, agg, pct);
   renderImpactStores(cityRows, agg, dates);
+  renderImpactDaily(dates);
   renderImpactItems(cities, dates);
   document.getElementById('panel-cityrank').style.display=(curCity==='PAN'&&cityRows.length>1)?'':'none';
   document.getElementById('panel-citytable').style.display=(curCity==='PAN')?'':'none';
@@ -1768,6 +1787,86 @@ function exportImpactStores(){
   downloadCSV('igcc_impact_stores_'+scopeTag()+'.csv',rows);
 }
 
+// ---- Daily IGCC% Trend panel (Impact tab): day-by-day IGCC% for the selected scope/period ----
+function renderImpactDaily(dates){
+  var wrap=document.getElementById('panel-impact-daily');
+  if(!wrap)return;
+  var hEl=document.getElementById('h-impact-daily');
+  if(hEl)hEl.textContent='Daily IGCC% Trend — '+scopeLabel()+' · '+periodLabel();
+  var rows=dates.map(function(d){
+    var a=dayAgg(d);
+    var inc=a[1]?(a[0]/a[1]*100):null;
+    return {d:d,ig:a[0],tot:a[1],inc:inc};
+  }).filter(function(r){return r.tot>0;});
+  // vs previous available day (the day before each row's day that exists in CAT.dates)
+  var allD=CAT.dates;
+  rows.forEach(function(r){
+    var i=allD.indexOf(r.d);
+    var pv=null;
+    for(var j=i-1;j>=0;j--){var a=dayAgg(allD[j]);if(a[1]>0){pv=a[0]/a[1]*100;break;}}
+    r.prev=(pv!=null&&r.inc!=null)?(r.inc-pv):null;
+  });
+  var k=impactDailySort.key,dir=impactDailySort.dir;
+  rows.sort(function(a,b){
+    var x=a[k],y=b[k];
+    if(k==='d')return dir*(x<y?-1:x>y?1:0);
+    if(x==null)return 1;if(y==null)return -1;
+    return dir*(x-y);
+  });
+  _lastImpactDailyRows=rows;
+  // chart: chronological order
+  var chrono=rows.slice().sort(function(a,b){return a.d<b.d?-1:1;});
+  if(chImpactDaily)chImpactDaily.destroy();
+  if(chrono.length){
+    chImpactDaily=new Chart(document.getElementById('ch-impact-daily'),{type:'line',
+      data:{labels:chrono.map(function(r){return fmtD(r.d);}),datasets:[
+        {label:'Daily IGCC%',data:chrono.map(function(r){return r.inc!=null?+r.inc.toFixed(3):null;}),
+         borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.15)',fill:true,tension:.3,
+         pointRadius:chrono.map(function(r){return isSelDay(r.d)?5:2;}),
+         pointBackgroundColor:chrono.map(function(r){return isSelDay(r.d)?'#f87171':'#a78bfa';})},
+        {label:'Target '+TARGET.toFixed(2)+'%',data:chrono.map(function(){return TARGET;}),borderColor:'#4ade80',borderDash:[6,4],borderWidth:2,pointRadius:0}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,onClick:function(e,el){if(el&&el.length)setDate(chrono[el[0].index].d);},
+        plugins:{legend:{labels:{color:'#e8ecef',font:{size:11},boxWidth:12,padding:8}},tooltip:{callbacks:{label:function(c){
+          if(c.datasetIndex!==0)return c.dataset.label;
+          var r=chrono[c.dataIndex];
+          return 'IGCC%: '+(c.parsed.y==null?'—':c.parsed.y.toFixed(2)+'%')+' · '+r.ig.toLocaleString()+' / '+r.tot.toLocaleString()+' orders';
+        }}}},
+      scales:{x:{ticks:{color:'#94a3b8',font:{size:10},maxRotation:60,minRotation:60},grid:{display:false}},y:{ticks:{color:'#94a3b8',callback:function(v){return v+'%';}},grid:{color:'#243447'},beginAtZero:true}}}});
+  } else if(chImpactDaily){chImpactDaily.destroy();chImpactDaily=null;}
+  var tb=document.getElementById('tb-impact-daily');
+  if(tb){
+    tb.innerHTML=rows.map(function(r){
+      var incCol=r.inc==null?'var(--text-dim)':r.inc>1.5?'var(--danger);font-weight:600':r.inc>TARGET?'var(--warn)':'var(--accent)';
+      var prevTxt=r.prev==null?'—':(r.prev>=0?'+':'')+r.prev.toFixed(2)+'pp';
+      var prevCol=r.prev==null?'var(--text-dim)':r.prev>0?'var(--danger)':r.prev<0?'var(--accent)':'var(--text-dim)';
+      var st=r.inc==null?'':(r.inc>TARGET?'<span style="color:var(--danger);font-weight:600">▲ +'+(r.inc-TARGET).toFixed(2)+'pp above</span>':'<span style="color:var(--accent)">✓ '+(TARGET-r.inc).toFixed(2)+'pp below</span>');
+      return '<tr style="cursor:pointer" onclick="setDate(\''+r.d+'\')">'+
+        '<td style="font-weight:500">'+fmtD(r.d)+'</td>'+
+        '<td class="num" style="'+incCol+'">'+(r.inc!=null?r.inc.toFixed(2)+'%':'—')+'</td>'+
+        '<td class="num">'+r.ig.toLocaleString()+'</td><td class="num">'+r.tot.toLocaleString()+'</td>'+
+        '<td class="num" style="color:'+prevCol+'">'+prevTxt+'</td>'+
+        '<td style="text-align:center">'+st+'</td></tr>';
+    }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
+  }
+  var foot=document.getElementById('impact-daily-foot');
+  if(foot){
+    if(!rows.length){foot.innerHTML='';return;}
+    var worst=rows.reduce(function(w,r){return (r.inc!=null&&(w==null||r.inc>w.inc))?r:w;},null);
+    var best=rows.reduce(function(b,r){return (r.inc!=null&&(b==null||r.inc<b.inc))?r:b;},null);
+    var above=rows.filter(function(r){return r.inc!=null&&r.inc>TARGET;});
+    foot.innerHTML=rows.length+' day'+(rows.length>1?'s':'')+' in scope · <strong style="color:var(--danger)">worst '+fmtD(worst.d)+' ('+worst.inc.toFixed(2)+'%)</strong> · <strong style="color:var(--accent)">best '+fmtD(best.d)+' ('+best.inc.toFixed(2)+'%)</strong> · '+above.length+' of '+rows.length+' days above '+TARGET.toFixed(2)+'% target'+(above.length?' ('+(above.reduce(function(s,r){return s+(r.inc-TARGET);},0)/above.length).toFixed(2)+'pp avg over-target)':'');
+  }
+}
+function exportImpactDaily(){
+  if(!_lastImpactDailyRows.length){toast('Nothing to export');return;}
+  var head=['Date','IGCC%','IGCC','Orders','vs Prev Day pp','vs Target'];
+  var rows=[head].concat(_lastImpactDailyRows.map(function(r){
+    return [r.d,(r.inc!=null?r.inc.toFixed(2):''),r.ig,r.tot,(r.prev!=null?r.prev.toFixed(2):''),(r.inc==null?'':(r.inc>TARGET?('+'+(r.inc-TARGET).toFixed(2)+'pp above'):((TARGET-r.inc).toFixed(2)+'pp below')))];
+  }));
+  downloadCSV('igcc_impact_daily_'+scopeTag()+'.csv',rows);
+}
+
 function renderCategoryTable(rows){
   var k=catSort.key,dir=catSort.dir;
   rows.sort(function(a,b){var x=a[k],y=b[k];if(typeof x==='string')return dir*x.localeCompare(y);return dir*(x-y);});
@@ -1873,6 +1972,7 @@ function renderCityChart(rows){
 document.addEventListener('click',function(e){
   var th=e.target.closest('th[data-sort]'); if(th){var k=th.dataset.sort;citySort.dir=(citySort.key===k?-citySort.dir:-1);citySort.key=k;render();return;}
   var ti=e.target.closest('th[data-impsort]'); if(ti){var k5=ti.dataset.impsort;impactSort.dir=(impactSort.key===k5?-impactSort.dir:-1);impactSort.key=k5;render();return;}
+  var td=e.target.closest('th[data-idsort]'); if(td){var k7=td.dataset.idsort;impactDailySort.dir=(impactDailySort.key===k7?-impactDailySort.dir:-1);impactDailySort.key=k7;render();return;}
   var ts=e.target.closest('th[data-imsort]'); if(ts){var k6=ts.dataset.imsort;impactStoreSort.dir=(impactStoreSort.key===k6?-impactStoreSort.dir:-1);impactStoreSort.key=k6;render();return;}
   var ti=e.target.closest('th[data-isort]'); if(ti){var k2=ti.dataset.isort;itemSort.dir=(itemSort.key===k2?-itemSort.dir:-1);itemSort.key=k2;itemSortLocked=true;render();return;}
   var tp=e.target.closest('th[data-psort]'); if(tp){var k3=tp.dataset.psort;podSort.dir=(podSort.key===k3?-podSort.dir:-1);podSort.key=k3;render();return;}

@@ -278,7 +278,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Oct 2026 21:40 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 15 Oct 2026 22:18 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -519,6 +519,15 @@
   <div id="impact-daily-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
 </div>
 
+<div class="panel" id="panel-impact-citygrid" style="margin-bottom:24px;">
+  <div class="panel-header"><h2 style="color:var(--info,#60a5fa)" id="h-impact-citygrid">City-wise Daily IGCC% &amp; Share</h2><span class="edit-hint" style="margin:0;">one row per city · one column per date · big number = city IGCC% that day, small number below = city's share of that day's total IGCC · click a date header to pick that day</span><label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
+    <select id="sel-citygrid-topn" onchange="setCityGridTopN(this.value)" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;"><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option><option value="ALL">All</option></select></label><button onclick="exportCityGrid()" style="margin-left:8px;font-size:11px;padding:4px 10px;">&#11015; Download CSV</button></div>
+  <div style="overflow-x:auto;max-height:480px;"><table id="tbl-citygrid">
+    <thead><tr id="tr-citygrid-head"></tr></thead><tbody id="tb-citygrid"></tbody>
+  </table></div>
+  <div id="impact-citygrid-foot" style="margin-top:10px;font-size:12px;color:#94a3b8;"></div>
+</div>
+
 <div class="panel" id="panel-impact-topitems" style="margin-bottom:24px;">
   <div class="panel-header"><h2 class="warn" id="h-impact-items">Top 5 Articles to Deep-Dive</h2><span class="edit-hint" id="impact-items-hint" style="margin:0;">biggest IGCC drivers across the above-target cities in scope · ranked by recoverable IGCC</span>
     <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">Show Top
@@ -708,6 +717,7 @@ let itemSortLocked=false, userPickedDay=false;  // items: W24 IGCC desc by defau
 let articlePending=[], articleSel=[];  // multi-article filter for the Item Breakdown table: pending chips vs the applied set
 let chTrend, chTier, chCities, chImpactDaily;
 let impactDailySort={key:'d',dir:-1};   // Daily IGCC% Trend table — newest day first by default
+let cityGridTopN=10;   // City-grid Top-N filter — 'ALL' = no cap
 var _lastImpactDailyRows=[];
 let lastItemRows=[], lastCityRows=[], lastCatRows=[];
 
@@ -1098,7 +1108,7 @@ function weeksOf(dates){var seen={},o=[];dates.forEach(function(d){var w=CAT.wee
 function weeksLabel(dates){var ws=weeksOf(dates);return ws.length?('W'+(ws.length>1?ws[0]+'–'+ws[ws.length-1]:ws[0])):'';}
 // single button to clear every filter back to the default landing view
 function resetAll(){
-  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';impactItemsTopN=5;impactStoreSort={key:'reduceprev',dir:-1};impactDailySort={key:'d',dir:-1};
+  dateRange=null;curDate=DEFDATE;curTier='ALL';curRegion='ALL';curServing='ALL';curCity='PAN';curStores=[];podTopN=10;itemTopN=25;artTopN=10;imgTopN=60;imgIssue='ALL';imgSpoc='ALL';impactItemsTopN=5;impactStoreSort={key:'reduceprev',dir:-1};impactDailySort={key:'d',dir:-1};cityGridTopN=10;
   articlePending=[];articleSel=[];userPickedDay=false;itemSortLocked=false;
   var qim=document.getElementById('img-issue');if(qim)qim.value='ALL';
   var qis=document.getElementById('img-spoc');if(qis)qis.value='ALL';
@@ -1240,6 +1250,7 @@ function render(){
   renderImpact(cityRows, agg, pct);
   renderImpactStores(cityRows, agg, dates);
   renderImpactDaily(dates);
+  renderCityGrid(dates);
   renderImpactItems(cities, dates);
   document.getElementById('panel-cityrank').style.display=(curCity==='PAN'&&cityRows.length>1)?'':'none';
   document.getElementById('panel-citytable').style.display=(curCity==='PAN')?'':'none';
@@ -1865,6 +1876,87 @@ function exportImpactDaily(){
     return [r.d,(r.inc!=null?r.inc.toFixed(2):''),r.ig,r.tot,(r.prev!=null?r.prev.toFixed(2):''),(r.inc==null?'':(r.inc>TARGET?('+'+(r.inc-TARGET).toFixed(2)+'pp above'):((TARGET-r.inc).toFixed(2)+'pp below')))];
   }));
   downloadCSV('igcc_impact_daily_'+scopeTag()+'.csv',rows);
+}
+
+// ---- City-wise Daily IGCC% & Share grid (Impact tab): rows = cities, cols = dates ----
+var _lastCityGridRows=[],_lastCityGridDates=[];
+function renderCityGrid(dates){
+  var wrap=document.getElementById('panel-impact-citygrid');
+  if(!wrap)return;
+  var hEl=document.getElementById('h-impact-citygrid');
+  if(hEl)hEl.textContent='City-wise Daily IGCC% & Share — '+scopeLabel()+' · '+periodLabel();
+  // rows: cities in scope with any data in the period
+  var crows=scopeCities().map(function(c){
+    var cells={},anyTot=0,anyIg=0;
+    dates.forEach(function(d){
+      var a=catAgg([c],[d]);
+      if(a[1]>0){cells[d]={ig:a[0],tot:a[1],inc:a[0]/a[1]*100};anyTot+=a[1];anyIg+=a[0];}
+    });
+    return {name:c,tier:(META[c]||{}).tier||2,cells:cells,ig:anyIg,tot:anyTot,inc:anyTot?(anyIg/anyTot*100):0};
+  }).filter(function(r){return r.tot>0;});
+  // default rank: biggest IGCC contributors first (small cities with extreme rates would otherwise lead)
+  crows.sort(function(a,b){return b.ig-a.ig;});
+  _lastCityGridRows=crows;_lastCityGridDates=dates.slice();
+  var nSel=document.getElementById('sel-citygrid-topn');
+  var n=(nSel&&nSel.value!=='ALL')?parseInt(nSel.value,10):NaN;
+  if(isNaN(n))n=crows.length;
+  var top=crows.slice(0,n);
+  // per-day scope totals for share calc
+  var dayTot={},dayIg={};
+  dates.forEach(function(d){var a=dayAgg(d);dayTot[d]=a[1];dayIg[d]=a[0];});
+  // header: City + Tier + one column per date (clickable → pick day)
+  var head=document.getElementById('tr-citygrid-head');
+  if(head)head.innerHTML='<th style="position:sticky;left:0;background:var(--panel-2);z-index:2;">City</th><th>Tier</th>'+
+    dates.map(function(d){return '<th class="num" style="cursor:pointer;white-space:nowrap;" title="Click to pick '+fmtD(d)+' as the selected day" onclick="setDate(\''+d+'\')">'+fmtD(d)+'</th>';}).join('');
+  var tb=document.getElementById('tb-citygrid');
+  if(tb){
+    tb.innerHTML=top.map(function(r){
+      var incCls=r.inc>1.5?'color:var(--danger);font-weight:600':r.inc>TARGET?'color:var(--warn)':'color:var(--accent)';
+      var cells=dates.map(function(d){
+        var c=r.cells[d];
+        if(!c)return '<td class="num" style="color:var(--text-dim)">—</td>';
+        var cInc=c.inc>1.5?'color:var(--danger);font-weight:600':c.inc>TARGET?'color:var(--warn)':'color:var(--accent)';
+        var share=dayIg[d]?(c.ig/dayIg[d]*100):0;
+        var tip=r.name+' · '+fmtD(d)+'\nIGCC%: '+c.inc.toFixed(2)+'%\nIGCC: '+c.ig.toLocaleString()+' of '+dayIg[d].toLocaleString()+' IGCC orders\nShare of day IGCC: '+share.toFixed(1)+'%';
+        return '<td class="num" style="line-height:1.25;padding:4px 8px;" title="'+esc(tip)+'">'+
+          '<div style="'+cInc+'">'+c.inc.toFixed(2)+'%</div>'+
+          '<div style="font-size:10px;color:var(--text-dim)">'+share.toFixed(1)+'%sh</div></td>';
+      }).join('');
+      return '<tr>'+
+        '<td style="font-weight:500;position:sticky;left:0;background:var(--panel);z-index:1;white-space:nowrap;">'+esc(r.name)+'</td>'+
+        '<td><span class="pill pill-t'+r.tier+'">T'+r.tier+'</span></td>'+cells+'</tr>';
+    }).join('')||'<tr><td colspan="'+(dates.length+2)+'" style="text-align:center;color:var(--text-dim);padding:20px">No city data in scope.</td></tr>';
+  }
+  // totals row at the bottom: scope-level per-day IGCC% + total IGCC count
+  var foot=document.getElementById('impact-citygrid-foot');
+  if(foot){
+    var totParts=dates.map(function(d){
+      var a=dayAgg(d);
+      if(!a[1])return ' — ';
+      return '<span style="'+(a[0]/a[1]>TARGET?'color:var(--danger)':'color:var(--accent)')+'">'+(a[0]/a[1]*100).toFixed(2)+'% ('+a[0].toLocaleString()+')</span>';
+    });
+    foot.innerHTML='<strong>Scope totals per day (IGCC% · IGCC count):</strong> '+totParts.join(' &nbsp;|&nbsp; ');
+  }
+}
+function setCityGridTopN(v){
+  var sel=document.getElementById('sel-citygrid-topn');
+  if(sel)sel.value=v;
+  render();
+}
+function exportCityGrid(){
+  if(!_lastCityGridRows.length||!_lastCityGridDates.length){toast('Nothing to export');return;}
+  var head=['City','Tier','Period IGCC%'].concat(_lastCityGridDates.map(function(d){
+    return fmtD(d)+' IGCC%|Share%';
+  }));
+  var rows=[head].concat(_lastCityGridRows.map(function(r){
+    var base=[r.name,'T'+r.tier,r.inc.toFixed(2)];
+    _lastCityGridDates.forEach(function(d){
+      var c=r.cells[d];
+      base.push(c?(c.inc.toFixed(2)+'|'+(function(){var a=dayAgg([d]);return a[0]?(c.ig/a[0]*100).toFixed(1):'';})()):'|');
+    });
+    return base;
+  }));
+  downloadCSV('igcc_impact_citygrid_'+scopeTag()+'.csv',rows);
 }
 
 function renderCategoryTable(rows){

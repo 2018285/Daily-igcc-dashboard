@@ -278,7 +278,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 22 Oct 2026 16:13 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 22 Oct 2026 16:23 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -363,7 +363,7 @@
       <th class="num" data-csort="ig">ORDERS_IGCC</th>
       <th class="num" data-csort="tot">ORDERS_TOTAL</th>
       <th class="num" data-csort="inc">IGCC%</th>
-      <th class="num" data-csort="share">Share of IGCC</th>
+      <th class="num" data-csort="share" title="Category's share of the day's total IGCC, shown per day across your selected date range (last 10 days of the selection) · sorting uses the period total share">Share of IGCC (Daily)</th>
       <th class="num" title="IGCC% for the equal-length period immediately before the current selection (Δ vs current)">vs Prev</th>
       <th class="num" data-csort="gap">Gap vs Target</th>
       <th style="text-align:left" title="Last 10 available Item-incidence days · green = at/below target, red = above target, grey = no data that day">10-Day Trend</th>
@@ -1296,6 +1296,24 @@ function render(){
     c.ig+=imPrevAll[code].ig; c.tot+=imPrevAll[code].tot;
   });
   var totalCatIG=Object.keys(catMap).reduce(function(s,k){return s+catMap[k].ig;},0);
+  // daily share series: per SELECTED day, category's share of that day's total IGCC (across all cats in scope)
+  var shareDates=dates.slice();
+  var shareByCat={};
+  shareDates.forEach(function(d){
+    var imD=itemAgg(cities,[d]);
+    var dayCat={},dayTotIg=0;
+    Object.keys(imD).forEach(function(code){
+      var cat=(ARTICLE_META[code]&&ARTICLE_META[code].cat)||'Uncategorized';
+      var c=dayCat[cat]||(dayCat[cat]={ig:0,tot:0});
+      c.ig+=imD[code].ig; c.tot+=imD[code].tot;
+      dayTotIg+=imD[code].ig;
+    });
+    Object.keys(catMap).forEach(function(cat){
+      var arr=shareByCat[cat]||(shareByCat[cat]=[]);
+      var v=dayCat[cat];
+      arr.push({date:d,pct:(dayTotIg&&v)?(v.ig/dayTotIg*100):null});
+    });
+  });
   var trendDates=(ITEMS.dates||[]).slice(-10);
   var trendByCat={};
   trendDates.forEach(function(d){
@@ -1315,7 +1333,7 @@ function render(){
   var catRows=Object.keys(catMap).map(function(cat){
     var v=catMap[cat], inc=v.tot?(v.ig/v.tot*100):0;
     var pv=catPrevMap[cat], prevInc=(pv&&pv.tot)?(pv.ig/pv.tot*100):null;
-    return {name:cat,ig:v.ig,tot:v.tot,inc:inc,prev:prevInc,gap:inc-TARGET,share:totalCatIG?(v.ig/totalCatIG*100):0,trend:trendByCat[cat]||[]};
+    return {name:cat,ig:v.ig,tot:v.tot,inc:inc,prev:prevInc,gap:inc-TARGET,share:totalCatIG?(v.ig/totalCatIG*100):0,shareTrend:shareByCat[cat]||[],trend:trendByCat[cat]||[]};
   }).filter(function(r){return r.tot>0;});
   renderCategoryTable(catRows);
 
@@ -1972,13 +1990,29 @@ function renderCategoryTable(rows){
       '<td class="num">'+r.ig.toLocaleString()+'</td><td class="num">'+r.tot.toLocaleString()+'</td>'+
       '<td class="num" style="'+incCls+'">'+r.inc.toFixed(2)+'%</td>'+
       '<td class="num">'+r.share.toFixed(1)+'%</td>'+
+      shareTrendCell(r.shareTrend)+
       deltaCell(r.inc,r.prev)+
       '<td class="num" style="'+gapCls+'">'+(r.gap>0?'+':'')+r.gap.toFixed(2)+'</td>'+
-      trendCell(r.trend)+'</tr>';
-  }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
+      trendCell(r.trend)+'</tr>';  }).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px">No data in scope.</td></tr>';
 }
-function trendCell(trend){
-  if(!trend||!trend.length) return '<td style="color:var(--text-dim)">—</td>';
+function shareTrendCell(st){
+  if(!st||!st.length) return '<td style="color:var(--text-dim)">—</td>';
+  return '<td><div style="overflow-x:auto;max-width:480px"><div style="display:flex;gap:10px;align-items:flex-end">'+st.map(function(t,i){
+    var dObj=new Date(t.date), lbl=(dObj.getMonth()+1)+'/'+dObj.getDate();
+    if(t.pct==null) return '<div style="text-align:center;font-size:10px;min-width:38px;white-space:nowrap"><div style="color:var(--text-dim)">'+lbl+'</div><div style="color:var(--text-dim)">—</div></div>';
+    var prev=null; for(var j=i-1;j>=0;j--){if(st[j].pct!=null){prev=st[j].pct;break;}}
+    var tri,color,dirTxt;
+    if(prev==null){tri='●';color='var(--text-dim)';dirTxt=' (no prior day to compare)';}
+    else if(t.pct>prev){tri='▲';color='var(--accent)';dirTxt=' (share grew vs prev day)';}
+    else if(t.pct<prev){tri='▼';color='var(--warn)';dirTxt=' (share shrank vs prev day)';}
+    else {tri='▬';color='var(--text-dim)';dirTxt=' (flat vs prev day)';}
+    return '<div style="text-align:center;font-size:10px;min-width:38px;white-space:nowrap" title="'+lbl+': '+t.pct.toFixed(1)+'% of that day\'s IGCC'+dirTxt+'">'+
+      '<div style="color:var(--text-dim)">'+lbl+'</div>'+
+      '<div style="color:'+color+';font-weight:600">'+tri+' '+t.pct.toFixed(1)+'%</div>'+
+    '</div>';
+  }).join('')+'</div></div></td>';
+}
+function trendCell(trend){  if(!trend||!trend.length) return '<td style="color:var(--text-dim)">—</td>';
   return '<td><div style="display:flex;gap:10px;align-items:flex-end">'+trend.map(function(t,i){
     var dObj=new Date(t.date), lbl=(dObj.getMonth()+1)+'/'+dObj.getDate();
     if(t.pct==null) return '<div style="text-align:center;font-size:10px;min-width:38px;white-space:nowrap"><div style="color:var(--text-dim)">'+lbl+'</div><div style="color:var(--text-dim)">—</div></div>';
@@ -2103,7 +2137,7 @@ function downloadCSV(name,rows){
 function scopeTag(){var c=curCity!=='PAN'?curCity.replace(/[^A-Za-z0-9]+/g,'-'):('PAN-'+curTier+(curRegion==='ALL'?'':'-'+curRegion)+(curServing==='ALL'?'':'-'+curServing));return c+'_'+(dateRange?(dateRange.from+'_to_'+dateRange.to):(curDate==='ALL'?'allDays':curDate));}
 function exportCities(){if(!lastCityRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(CAT.dates[0]+' to '+CAT.dates[CAT.dates.length-1]):curDate);var head=['Day','City','Tier','Region','ORDERS_IGCC','ORDERS_TOTAL','IGCC%','Prev IGCC%','vs Prev pp','vs Target','Top Item','RCA Bucket'];var rows=[head].concat(lastCityRows.map(function(r){return [day,r.name,'T'+r.tier,r.region,r.ig,r.tot,r.inc.toFixed(2)+'%',(r.prev==null?'':r.prev.toFixed(2)+'%'),(r.prev==null?'':(r.inc-r.prev>=0?'+':'')+(r.inc-r.prev).toFixed(2)),(r.gap>0?'+':'')+r.gap.toFixed(2),r.top,rcaText(r.rca)];}));downloadCSV('igcc_daily_cities_'+scopeTag()+'.csv',rows);}
 function exportItems(){if(!lastItemRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var head=['Day','Scope','Item Code','SKU','Orders','IGCC (period)','inc% (period)','W43 IGCC','W43 inc%','Last Day IGCC','Last Day inc%','Prev inc%','vs Prev pp','Cities','RCA Bucket'];var rows=[head].concat(lastItemRows.map(function(s){return [day,sc,s.code,s.name,s.tot,s.ig,(s.tot?s.inc.toFixed(2)+'%':''),s.wig,(s.wtot?s.winc.toFixed(2)+'%':''),s.dig,(s.dtot?s.dinc.toFixed(2)+'%':''),(s.pinc==null?'':s.pinc.toFixed(2)+'%'),(s.pinc==null?'':(s.inc-s.pinc>=0?'+':'')+(s.inc-s.pinc).toFixed(2)),s.ncity,rcaText(s.rca)];}));downloadCSV('igcc_'+(itemTopN==='ALL'?'all':'top'+itemTopN)+'_items_'+scopeTag()+'.csv',rows);}
-function exportCategories(){if(!lastCatRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var head=['Day','Scope','Category','ORDERS_IGCC','ORDERS_TOTAL','IGCC%','Share of IGCC','Prev IGCC%','vs Prev pp','Gap vs Target'];var rows=[head].concat(lastCatRows.map(function(r){return [day,sc,r.name,r.ig,r.tot,r.inc.toFixed(2)+'%',r.share.toFixed(1)+'%',(r.prev==null?'':r.prev.toFixed(2)+'%'),(r.prev==null?'':(r.inc-r.prev>=0?'+':'')+(r.inc-r.prev).toFixed(2)),(r.gap>0?'+':'')+r.gap.toFixed(2)];}));downloadCSV('igcc_categories_'+scopeTag()+'.csv',rows);}
+function exportCategories(){if(!lastCatRows.length){toast('Nothing to export');return;}var day=dateRange?(dateRange.from+' to '+dateRange.to):(curDate==='ALL'?(ITEMS.dates[0]+' to '+ITEMS.dates[ITEMS.dates.length-1]):curDate),sc=scopeLabel();var shareDates=lastCatRows.length&&lastCatRows[0].shareTrend?lastCatRows[0].shareTrend.map(function(t){return t.date; }):[];var head=['Day','Scope','Category','ORDERS_IGCC','ORDERS_TOTAL','IGCC%','Share of IGCC (period)'].concat(shareDates.map(function(d){var o=new Date(d);return 'Share '+(o.getMonth()+1)+'/'+o.getDate();})).concat(['Prev IGCC%','vs Prev pp','Gap vs Target']);var rows=[head].concat(lastCatRows.map(function(r){var base=[day,sc,r.name,r.ig,r.tot,r.inc.toFixed(2)+'%',r.share.toFixed(1)+'%'];shareDates.forEach(function(d){var t=(r.shareTrend||[]).find(function(x){return x.date===d;});base.push(t&&t.pct!=null?t.pct.toFixed(1)+'%':'');});base.push((r.prev==null?'':r.prev.toFixed(2)+'%'),(r.prev==null?'':(r.inc-r.prev>=0?'+':'')+(r.inc-r.prev).toFixed(2)),(r.gap>0?'+':'')+r.gap.toFixed(2));return base;}));downloadCSV('igcc_categories_'+scopeTag()+'.csv',rows);}
 
 // Pop-out link: open this page in a standalone tab. Only shown when embedded
 // (e.g. inside the Apps Script web-app iframe), where breaking out to full screen helps.

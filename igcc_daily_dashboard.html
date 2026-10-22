@@ -278,7 +278,7 @@
       <span class="badge">133 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 22 Oct 2026 16:23 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 22 Oct 2026 16:44 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -2003,8 +2003,8 @@ function shareTrendCell(st){
     var prev=null; for(var j=i-1;j>=0;j--){if(st[j].pct!=null){prev=st[j].pct;break;}}
     var tri,color,dirTxt;
     if(prev==null){tri='●';color='var(--text-dim)';dirTxt=' (no prior day to compare)';}
-    else if(t.pct>prev){tri='▲';color='var(--accent)';dirTxt=' (share grew vs prev day)';}
-    else if(t.pct<prev){tri='▼';color='var(--warn)';dirTxt=' (share shrank vs prev day)';}
+    else if(t.pct>prev){tri='▲';color='var(--danger)';dirTxt=' (share grew vs prev day)';}
+    else if(t.pct<prev){tri='▼';color='var(--accent)';dirTxt=' (share shrank vs prev day)';}
     else {tri='▬';color='var(--text-dim)';dirTxt=' (flat vs prev day)';}
     return '<div style="text-align:center;font-size:10px;min-width:38px;white-space:nowrap" title="'+lbl+': '+t.pct.toFixed(1)+'% of that day\'s IGCC'+dirTxt+'">'+
       '<div style="color:var(--text-dim)">'+lbl+'</div>'+

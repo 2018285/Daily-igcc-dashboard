@@ -278,7 +278,7 @@
       <span class="badge">134 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 26 Oct 2026 13:33 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 26 Oct 2026 14:23 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -1077,7 +1077,14 @@ function clearStores(){curStores=[];render();}
 // ---- multi-article filter (chips + Apply) ----
 function renderArticleChips(){
   var el=document.getElementById('article-chips'); if(!el)return;
-  el.innerHTML=articlePending.map(function(t,i){return '<span style="background:#243447;border:1px solid var(--border);border-radius:10px;padding:2px 4px 2px 8px;font-size:11px;color:#e8ecef;white-space:nowrap;">'+t.replace(/</g,'&lt;')+' <span style="cursor:pointer;color:#f87171;font-weight:700;padding:0 3px" onclick="removeArticle('+i+')">×</span></span>';}).join('');
+  // cap visible chips so a Category/Sub-Cat/Brand selection (hundreds of matched articles) doesn't blow up the toolbar
+  var MAXCHIPS=3;
+  var shown=articlePending.slice(0,MAXCHIPS);
+  var html=shown.map(function(t,i){return '<span style="background:#243447;border:1px solid var(--border);border-radius:10px;padding:2px 4px 2px 8px;font-size:11px;color:#e8ecef;white-space:nowrap;">'+t.replace(/</g,'&lt;')+' <span style="cursor:pointer;color:#f87171;font-weight:700;padding:0 3px" onclick="removeArticle('+i+')">×</span></span>';}).join('');
+  if(articlePending.length>MAXCHIPS){
+    html+='<span style="background:#1e3a5f;border:1px solid #60a5fa;border-radius:10px;padding:2px 8px;font-size:11px;color:#60a5fa;white-space:nowrap;font-weight:600;" title="'+articlePending.length+' articles matched by the active filter — all are applied to every table">+'+(articlePending.length-MAXCHIPS)+' more · filter active</span>';
+  }
+  el.innerHTML=html;
 }
 function addArticle(v){v=(v||'').trim(); if(v&&articlePending.indexOf(v)<0)articlePending.push(v); var el=document.getElementById('article-q'); if(el)el.value=''; renderArticleChips();}
 function removeArticle(i){articlePending.splice(i,1);renderArticleChips();}

@@ -278,7 +278,7 @@
       <span class="badge">134 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 27 Oct 2026 15:51 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 27 Oct 2026 16:08 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -1637,9 +1637,10 @@ function renderImpactItems(cities, dates){
     var _fin0=document.getElementById('impact-items-final'); if(_fin0)_fin0.innerHTML='';
     _lastImpactItemRows=[]; return;
   }
-  // aggregate per-article from ITEMS.data restricted to the above-target cities
+  // aggregate per-article from ITEMS.data restricted to the above-target cities (or the single selected city)
+  var aggCities=offCities.length?offCities:(belowSingle?[curCity]:[]);
   var codes={}, igTot={};
-  offCities.forEach(function(c){
+  aggCities.forEach(function(c){
     var cd=ITEMS.data[c]; if(!cd)return;
     dates.forEach(function(d){
       var arr=cd[d]; if(!arr)return;
@@ -1659,18 +1660,19 @@ function renderImpactItems(cities, dates){
     var inc=v.tot?(v.ig/v.tot*100):0;
     var recover=Math.max(0,Math.round(v.tot*Math.max(0,inc-TARGET)/100));
     var wcs=Object.keys(v.cities).map(function(c){var cv=v.cities[c];return {city:c,ig:cv[0],tot:cv[1],inc:cv[1]?(cv[0]/cv[1]*100):0};}).sort(function(a,b){return b.ig-a.ig;});
-    return {code:code,name:ITEMS.names[code]||code,ig:v.ig,tot:v.tot,inc:inc,recover:recover,worstCities:wcs.slice(0,5),rca:rcaItemMap(offCities,code),spoc:spocItemMap(offCities,code)};
-  }).filter(function(r){return belowSingle?r.ig>0:r.inc>TARGET;});
-  // rank by recoverable IGCC (the actual reduction levers), tie-break by raw IGCC; below-target city ranks by raw IGCC
-  rows.sort(function(a,b){return belowSingle?(b.ig-a.ig):(b.recover-a.recover||b.ig-a.ig);});
+    return {code:code,name:ITEMS.names[code]||code,ig:v.ig,tot:v.tot,inc:inc,recover:recover,worstCities:wcs.slice(0,5),rca:rcaItemMap(offCities.length?offCities:[curCity],code),spoc:spocItemMap(offCities.length?offCities:[curCity],code)};
+  }).filter(function(r){return r.inc>TARGET;});
+  // rank by recoverable IGCC (the actual reduction levers), tie-break by raw IGCC
+  // note: applies to below-target cities too — the city overall may be under 1.25% but individual articles can still be above
+  rows.sort(function(a,b){return b.recover-a.recover||b.ig-a.ig;});
   var shown=(impactItemsTopN==='ALL')?rows:rows.slice(0,+impactItemsTopN);
   _lastImpactItemRows=shown;
   var offTotIG=rows.reduce(function(s,r){return s+r.ig;},0);
   var totRecover=rows.reduce(function(s,r){return s+r.recover;},0);
   var shownRecover=shown.reduce(function(s,r){return s+r.recover;},0);
-  if(hh)hh.textContent=((impactItemsTopN==='ALL')?'Top Articles':'Top '+impactItemsTopN+' Articles')+' to Deep-Dive'+(belowSingle?' — '+curCity+' (below '+TARGET.toFixed(2)+'% target)':' — '+offCities.length+' cities above '+TARGET.toFixed(2)+'%')+' · '+scopeLabel()+' · '+periodLabel();
+  if(hh)hh.textContent=((impactItemsTopN==='ALL')?'Top Articles':'Top '+impactItemsTopN+' Articles')+' to Deep-Dive'+(belowSingle?(' — '+shown.length+' articles above '+TARGET.toFixed(2)+'% in '+curCity):(' — '+offCities.length+' cities above '+TARGET.toFixed(2)+'%'))+' · '+scopeLabel()+' · '+periodLabel();
   if(intro)intro.innerHTML=belowSingle
-    ?('<span style="color:var(--accent)">'+curCity+' is currently <strong>below the '+TARGET.toFixed(2)+'% target</strong> — showing its biggest IGCC contributors by volume instead of recoverable-at-target.</span>')
+    ?('<span style="color:var(--accent)">'+curCity+' is <strong>below the '+TARGET.toFixed(2)+'% target overall</strong>, but <strong style="color:var(--warn)">'+rows.length+' articles inside it are above '+TARGET.toFixed(2)+'%</strong> at article level — fixing these brings the city further down. Ranked by recoverable orders.</span>')
     :('Scope: the <strong style="color:var(--danger)">'+offCities.length+' above-target cities</strong> in the current view ('+offCities.slice(0,8).join(', ')+(offCities.length>8?' +'+(offCities.length-8)+' more':'')+'). Fixing these articles brings the biggest IGCC reduction — ranked by recoverable orders.');
   var fin=document.getElementById('impact-items-final');
   if(!shown.length){tb.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text-dim);padding:20px">No article-level data for the above-target cities in this period.</td></tr>';if(foot)foot.innerHTML='';if(fin)fin.innerHTML='';return;}
@@ -1698,10 +1700,13 @@ function renderImpactItems(cities, dates){
     if(belowSingle){
       var cityAgg=catAgg([curCity],dates);
       var cityPct=catPct(cityAgg[0],cityAgg[1]);
+      var cityFinalIg=cityAgg[0]-shownRecover;
+      var cityFinalPct=cityAgg[1]?(cityFinalIg/cityAgg[1]*100):0;
       var nLblB=(impactItemsTopN==='ALL')?('all '+shown.length+' listed articles'):(shown.length+' listed article'+(shown.length>1?'s':''));
-      fin.innerHTML='<strong style="color:var(--accent);font-size:13px;">ℹ️ '+curCity+' is below target ('+cityPct.toFixed(2)+'% vs '+TARGET.toFixed(2)+'%) — no recoverable-at-target math applies.</strong> '
-        +'The '+nLblB+' shown are its biggest IGCC contributors by volume: <strong>'+shownIg.toLocaleString()+'</strong> of '+offTotIG.toLocaleString()+' total IGCC orders in '+periodLabel()
-        +(shown.length<rows.length?'<div style="margin-top:4px;font-size:11px;color:#94a3b8;">+'+(rows.length-shown.length)+' more contributors beyond this Top-N — increase "Show Top" to see them.</div>':'');
+      fin.innerHTML='<strong style="color:var(--warn);font-size:13px;">🎯 '+curCity+' is below target ('+cityPct.toFixed(2)+'% vs '+TARGET.toFixed(2)+'%), but '+rows.length+' of its articles are above '+TARGET.toFixed(2)+'%. If these '+nLblB+' drop to target:</strong> '
+        +'<span style="font-weight:600;">−'+shownRecover.toLocaleString()+' IGCC orders</span> → city goes from <strong>'+cityAgg[0].toLocaleString()+'</strong> to <strong style="color:var(--accent)">'+cityFinalIg.toLocaleString()+'</strong> IGCC orders, '
+        +'IGCC% from <strong>'+cityPct.toFixed(2)+'%</strong> to <strong style="color:var(--accent)">'+cityFinalPct.toFixed(2)+'%</strong> · '+periodLabel()
+        +(shown.length<rows.length?'<div style="margin-top:4px;font-size:11px;color:#94a3b8;">Remaining '+ (rows.length-shown.length) +' unlisted articles still hold '+ (totRecover-shownRecover).toLocaleString() +' more recoverable orders — increase "Show Top" to include them.</div>':'');
     }else{
     var offAgg=catAgg(offCities,dates);
     var finalIg=offAgg[0]-shownRecover;
@@ -1714,9 +1719,7 @@ function renderImpactItems(cities, dates){
       +(shown.length<rows.length?'<div style="margin-top:4px;font-size:11px;color:#94a3b8;">Remaining '+ (rows.length-shown.length) +' unlisted articles still hold '+ (totRecover-shownRecover).toLocaleString() +' more recoverable orders — increase "Show Top" to include them.</div>':'');
     }
   }
-  if(foot)foot.innerHTML=belowSingle
-    ?('<strong style="color:var(--accent);">'+(impactItemsTopN==='ALL'?('All '+shown.length+' articles'):('Top '+shown.length+' articles'))+' = '+shownIg.toLocaleString()+' IGCC orders</strong> of '+offTotIG.toLocaleString()+' total in '+curCity+' ('+rows.length+' articles with data) · '+periodLabel())
-    :('<strong style="color:var(--warn);">'+(impactItemsTopN==='ALL'?('All '+shown.length+' articles'):('Top '+shown.length+' articles'))+' = '+shownRecover.toLocaleString()+' recoverable IGCC orders</strong> of '+totRecover.toLocaleString()+' total recoverable across '+rows.length+' articles &nbsp;·&nbsp; all above-target cities combined: '+offTotIG.toLocaleString()+' IGCC orders in '+periodLabel());
+  if(foot)foot.innerHTML='<strong style="color:var(--warn);">'+(impactItemsTopN==='ALL'?('All '+shown.length+' articles'):('Top '+shown.length+' articles'))+' = '+shownRecover.toLocaleString()+' recoverable IGCC orders</strong> of '+totRecover.toLocaleString()+' total recoverable across '+rows.length+' above-target articles &nbsp;·&nbsp; scope total: '+offTotIG.toLocaleString()+' IGCC orders in '+(belowSingle?curCity:'above-target cities')+' · '+periodLabel();
 }
 function exportImpactItems(){
   if(!_lastImpactItemRows.length){toast('Nothing to export');return;}

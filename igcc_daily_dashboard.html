@@ -278,7 +278,7 @@
       <span class="badge">134 cities</span>
       <span class="badge">PAN/City: Cat.inc · Items: Item incidences</span>
       <span class="badge warn">Official methodology (orders-based)</span>
-      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 29 Oct 2026 15:43 IST</span>
+      <span class="badge" title="When this dashboard HTML was last rebuilt from the source CSVs">🔄 Updated: 29 Oct 2026 17:41 IST</span>
       <a id="popout" class="badge live" href="#" onclick="popOut();return false;" style="display:none;cursor:pointer;text-decoration:none;">↗ Open in new tab</a>
     </div>
   </div>
@@ -901,7 +901,6 @@ function renderArticleTrend(){
 
   // determine which article codes to show
   var codes=ACTSET?Object.keys(ACTSET):null;
-  if(codes&&codes.length>20)codes=codes.slice(0,20);  // cap at 20 lines for readability
 
   // aggregate: for each date, per code: Σ IGCC / Σ orders across scope cities
   var byCode={};  // code → {date: {ig,tot}}
@@ -929,7 +928,7 @@ function renderArticleTrend(){
     var sb=dates.reduce(function(s,d){return s+(byCode[b]&&byCode[b][d]?byCode[b][d].ig:0);},0);
     return sb-sa;
   });
-  if(!codes&&artTopN!=='ALL')showCodes=showCodes.slice(0,+artTopN); // unfiltered: Top-N by IGCC
+  if(artTopN!=='ALL')showCodes=showCodes.slice(0,+artTopN); // Top-N by IGCC, applies in filtered and unfiltered views
 
   // palette
   var COLS=['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#f87171','#38bdf8','#fb923c','#4ade80','#e879f9',
@@ -977,7 +976,7 @@ function renderArticleTrend(){
 
   // update heading
   var hd=document.getElementById('h-arttrend');
-  if(hd)hd.textContent='Article Day-wise Trend — '+(showCodes.length===1?(ITEMS.names[showCodes[0]]||showCodes[0]):(codes?(showCodes.length+' articles'):((artTopN==='ALL'?'All':'Top '+artTopN)+' articles')))+' · '+scopeLabel();
+  if(hd)hd.textContent='Article Day-wise Trend — '+(showCodes.length===1?(ITEMS.names[showCodes[0]]||showCodes[0]):((artTopN==='ALL'?'All':'Top '+artTopN)+(codes?' of '+showCodes.length+' filtered':'')+' articles'))+' · '+scopeLabel();
   var hint=document.getElementById('arttrend-hint');
   if(hint)hint.textContent='Daily IGCC% per article · '+periodLabel()+' · '+scopeLabel();
 }
